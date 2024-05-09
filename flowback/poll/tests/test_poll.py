@@ -207,7 +207,7 @@ class PollTest(APITransactionTestCase):
             dynamic=False,
             attachments=[SimpleUploadedFile("test.jpg", b"test")],
             approval_minimum=1,
-            finalization_period="0",
+            finalization_period="5d",
             **generate_poll_phase_kwargs("base")
         )
         request = factory.post("", data=data)
