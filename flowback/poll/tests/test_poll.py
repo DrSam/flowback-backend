@@ -191,3 +191,25 @@ class PollTest(APITransactionTestCase):
         vote(1)
         vote(-1)
         vote(0)
+
+    def test_create_poll_add_approval_minimum_and_finalization_period(self):
+        factory = APIRequestFactory()
+        user = self.group_user_creator.user
+        view = PollCreateAPI.as_view()
+
+        data = dict(
+            title="test title",
+            description="test description",
+            poll_type=4,
+            public=True,
+            tag=self.group_tag.id,
+            pinned=False,
+            dynamic=False,
+            attachments=[SimpleUploadedFile("test.jpg", b"test")],
+            approval_minimum=1,
+            finalization_period="0",
+            **generate_poll_phase_kwargs("base")
+        )
+        request = factory.post("", data=data)
+        force_authenticate(request, user)
+        response = view(request, group_id=self.group.id)
