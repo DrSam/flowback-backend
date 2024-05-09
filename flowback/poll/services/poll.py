@@ -46,7 +46,9 @@ def poll_create(*, user_id: int,
                 pinned: bool,
                 dynamic: bool,
                 attachments: list = None,
-                quorum: int = None
+                quorum: int = None,
+                approval_minimum: int = None,
+                finalization_period:str = None,
                 ) -> Poll:
     group_user = group_user_permissions(user=user_id, group=group_id, permissions=['create_poll', 'admin'])
 
@@ -102,7 +104,10 @@ def poll_create(*, user_id: int,
                 pinned=pinned,
                 dynamic=dynamic,
                 quorum=quorum,
-                attachments=collection)
+                attachments=collection,
+                approval_minimum=approval_minimum,
+                finalization_period=finalization_period
+            )
 
     # poll.full_clean()  TODO make full clean possible for pre_save!
     poll.save()

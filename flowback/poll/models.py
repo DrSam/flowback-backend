@@ -84,6 +84,21 @@ class Poll(BaseModel):
     participants = models.IntegerField(default=0)
     dynamic = models.BooleanField()
 
+    approval_minimum = models.IntegerField(
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        name='approval_minimum',
+        help_text='Minimum approval percentage required for the poll to pass',
+        null=True,
+        blank=True,
+    )
+
+    finalization_period = models.DurationField(
+        name='finalization_period',
+        help_text='Time period after the poll has ended before the result is finalized',
+        null=True,
+        blank=True,
+    )
+
     @property
     def finished(self):
         return self.vote_end_date <= timezone.now()

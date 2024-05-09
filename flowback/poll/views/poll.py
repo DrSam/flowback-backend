@@ -89,39 +89,43 @@ class PollListApi(APIView):
 
         class Meta:
             model = Poll
-            fields = ('id',
-                      'group_id',
-                      'group_name',
-                      'group_image',
-                      'created_by',
-                      'group_joined',
-                      'hide_poll_users',
-                      'title',
-                      'description',
-                      'poll_type',
-                      'allow_fast_forward',
-                      'public',
-                      'tag',
-                      'tag_name',
-                      'start_date',
-                      'proposal_end_date',
-                      'prediction_statement_end_date',
-                      'area_vote_end_date',
-                      'prediction_bet_end_date',
-                      'delegate_vote_end_date',
-                      'vote_end_date',
-                      'end_date',
-                      'result',
-                      'participants',
-                      'pinned',
-                      'dynamic',
-                      'total_comments',
-                      'priority',
-                      'user_priority',
-                      'quorum',
-                      'status',
-                      'message_channel_topic_id',
-                      'attachments')
+            fields = (
+                    'id',
+                    'group_id',
+                    'group_name',
+                    'group_image',
+                    'created_by',
+                    'group_joined',
+                    'hide_poll_users',
+                    'title',
+                    'description',
+                    'poll_type',
+                    'allow_fast_forward',
+                    'public',
+                    'tag',
+                    'tag_name',
+                    'start_date',
+                    'proposal_end_date',
+                    'prediction_statement_end_date',
+                    'area_vote_end_date',
+                    'prediction_bet_end_date',
+                    'delegate_vote_end_date',
+                    'vote_end_date',
+                    'end_date',
+                    'result',
+                    'participants',
+                    'pinned',
+                    'dynamic',
+                    'total_comments',
+                    'priority',
+                    'user_priority',
+                    'quorum',
+                    'status',
+                    'message_channel_topic_id',
+                    'attachments',
+                    'approval_minimum',
+                    'finalization_period'
+                )
 
     def get(self, request, group_id: int = None):
         filter_serializer = self.FilterSerializer(data=request.query_params)
@@ -165,27 +169,39 @@ class PollCreateAPI(APIView):
         delegate_vote_end_date = serializers.DateTimeField(required=False)
         vote_end_date = serializers.DateTimeField(required=False)
         end_date = serializers.DateTimeField(required=False)
+        approval_minimum = serializers.FloatField(
+            required=False,
+            min_value=0,
+            max_value=100
+        )
+        finalization_period = serializers.DurationField(
+            required=False,
+        )
 
         class Meta:
             model = Poll
-            fields = ('title',
-                      'description',
-                      'start_date',
-                      'proposal_end_date',
-                      'prediction_statement_end_date',
-                      'area_vote_end_date',
-                      'prediction_bet_end_date',
-                      'delegate_vote_end_date',
-                      'vote_end_date',
-                      'end_date',
-                      'poll_type',
-                      'public',
-                      'allow_fast_forward',
-                      'tag',
-                      'pinned',
-                      'dynamic',
-                      'quorum',
-                      'attachments')
+            fields = (
+                    'title',
+                    'description',
+                    'start_date',
+                    'proposal_end_date',
+                    'prediction_statement_end_date',
+                    'area_vote_end_date',
+                    'prediction_bet_end_date',
+                    'delegate_vote_end_date',
+                    'vote_end_date',
+                    'end_date',
+                    'poll_type',
+                    'public',
+                    'allow_fast_forward',
+                    'tag',
+                    'pinned',
+                    'dynamic',
+                    'quorum',
+                    'attachments',
+                    'approval_minimum',
+                    'finalization_period'
+                    )
 
     def post(self, request, group_id: int):
         serializer = self.InputSerializer(data=request.data)
