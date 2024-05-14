@@ -49,6 +49,7 @@ def poll_create(*, user_id: int,
                 quorum: int = None,
                 approval_minimum: int = None,
                 finalization_period:str = None,
+                parent_id: int = None
                 ) -> Poll:
     group_user = group_user_permissions(user=user_id, group=group_id, permissions=['create_poll', 'admin'])
 
@@ -106,10 +107,11 @@ def poll_create(*, user_id: int,
                 quorum=quorum,
                 attachments=collection,
                 approval_minimum=approval_minimum,
-                finalization_period=finalization_period
+                finalization_period=finalization_period,
+                parent_id=parent_id
             )
 
-    # poll.full_clean()  TODO make full clean possible for pre_save!
+    poll.clean()  # TODO make full clean possible for pre_save!
     poll.save()
 
     # Group notification
