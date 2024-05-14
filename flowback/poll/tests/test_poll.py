@@ -197,6 +197,7 @@ class PollTest(APITransactionTestCase):
         user = self.group_user_creator.user
         view = PollCreateAPI.as_view()
 
+
         data = dict(
             title="test title",
             description="test description",
@@ -207,9 +208,23 @@ class PollTest(APITransactionTestCase):
             dynamic=False,
             attachments=[SimpleUploadedFile("test.jpg", b"test")],
             approval_minimum=1,
-            finalization_period="5d",
+            finalization_period="5 00:00",
             **generate_poll_phase_kwargs("base")
         )
         request = factory.post("", data=data)
         force_authenticate(request, user)
         response = view(request, group_id=self.group.id)
+
+        self.assertEqual(
+            response.status_code,
+            200,
+            response.rendered_content
+        )
+
+        poll = Poll.objects.get(title="test title")
+        self.assertEqual(
+            poll.approval_minimum,
+            1
+        )
+
+     
