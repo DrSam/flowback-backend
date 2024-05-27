@@ -5,8 +5,16 @@ from rest_framework.exceptions import ValidationError
 from backend.settings import SCORE_VOTE_CEILING, SCORE_VOTE_FLOOR
 from flowback.common.services import get_object
 from flowback.group.models import GroupUserDelegatePool, GroupUser
-from flowback.poll.models import Poll, PollProposal, PollVoting, PollVotingTypeRanking, PollDelegateVoting, \
-    PollVotingTypeForAgainst, PollVotingTypeCardinal, PollPriority
+from flowback.poll.models import (
+    Poll, 
+    PollProposal, 
+    PollVoting, 
+    PollVotingTypeRanking, 
+    PollDelegateVoting, 
+    PollVotingTypeForAgainst,
+    PollVotingTypeCardinal,
+    PollPriority
+)
 from flowback.group.selectors import group_user_permissions
 from flowback.group.services import group_schedule
 from django.utils import timezone
@@ -329,3 +337,32 @@ def poll_proposal_vote_count(*, poll_id: int) -> None:
         poll.status = 1 if poll.participants > total_group_users * quorum else -1
         poll.result = True
         poll.save()
+
+ 
+
+    if poll.dynamic:
+        quorum_completed = poll.participants > total_group_users * quorum
+        approval_minimum = poll.approval_minimum / 100
+
+        if quorum_completed:
+            # Check if the approval_minimum is met
+            approval_minimum_completed = False
+            for proposal in poll.pollproposal_set.all():
+                if proposal.positive_votes > poll.participants * approval_minimum:
+                    approval_minimum_completed = True
+                    break
+            
+            if approval_minimum_completed:
+                poll.finalization_period_start = timezone.now()
+            else:
+                # Set finalization period start to None if approval minimum is not met
+                poll.finalization_period_start = None
+
+            poll.save()
+
+            if poll.finalization_period_start:
+                # Check if the finalization period is over
+                if poll.finalization_period_start + poll.finalization_period < timezone.now():
+                    poll.status = 1
+                    poll.result = True
+                    poll.save()
