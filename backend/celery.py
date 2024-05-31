@@ -28,7 +28,10 @@ app.autodiscover_tasks()
 app.conf.beat_schedule = {
     "daily_process_poll_finishing_criteria": {
         "task": "daily_process_poll_finishing_criteria",
-        "schedule": 30.0,
+        "schedule": crontab(
+            hour=0,
+            minute=0,
+        ),
     },
 }
 
