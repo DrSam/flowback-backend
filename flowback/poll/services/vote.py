@@ -197,11 +197,28 @@ def poll_proposal_vote_count(*, poll_id: int) -> None:
                                                            ).annotate(
             positive_votes=Subquery(mandate_subquery)).aggregate(total_positive_votes=Sum('positive_votes')
                                                                  ).get('total_positive_votes') or 0
-
+  
         PollProposal.objects.filter(poll=poll).update(blank_votes=blank_votes,
                                                       participants=participants,
                                                       positive_votes=positive_votes)
 
+        # Fill up the proposal_votes_info field with the votes negative votes and blank votes, for each proposal
+
+        for proposal in poll.pollproposal_set.all():
+            proposal_positive_votes = voting_type_class.objects.filter(
+                    author__poll=poll, proposal=proposal, score__gt=0).count()
+            proposal_negative_votes = voting_type_class.objects.filter(
+                    author__poll=poll, proposal=proposal, score__lt=0).count()
+            proposal_blank_votes = voting_type_class.objects.filter(
+                    author__poll=poll, proposal=proposal, score=0).count()
+
+            proposal.proposal_votes_info = {
+                'positive_votes': proposal_positive_votes,
+                'negative_votes': proposal_negative_votes,
+                'blank_votes': proposal_blank_votes
+            }
+            proposal.save()
+            
     # Count mandate for each delegate, multiply it by score
     # TODO Redundant
     mandate = GroupUserDelegatePool.objects.filter(polldelegatevoting__poll=poll).aggregate(
@@ -284,6 +301,7 @@ def poll_proposal_vote_count(*, poll_id: int) -> None:
             PollProposal.objects.update(score=Subquery(proposal_scores))
 
             save_participants_count(PollVotingTypeCardinal)
+            poll.participants = mandate + PollVoting.objects.filter(poll=poll).all().count()
 
     if poll.poll_type == Poll.PollType.SCHEDULE:
         if poll.tag:
@@ -338,31 +356,34 @@ def poll_proposal_vote_count(*, poll_id: int) -> None:
         poll.result = True
         poll.save()
 
- 
 
     if poll.dynamic:
         quorum_completed = poll.participants > total_group_users * quorum
-        approval_minimum = poll.approval_minimum / 100
 
         if quorum_completed:
-            # Check if the approval_minimum is met
-            approval_minimum_completed = False
-            for proposal in poll.pollproposal_set.all():
-                if proposal.positive_votes > poll.participants * approval_minimum:
-                    approval_minimum_completed = True
-                    break
-            
-            if approval_minimum_completed:
-                poll.finalization_period_start = timezone.now()
-            else:
-                # Set finalization period start to None if approval minimum is not met
-                poll.finalization_period_start = None
+            if poll.approval_minimum:
+                approval_minimum = poll.approval_minimum / 100
+                # Check if the approval_minimum is met
+                approval_minimum_completed = False
+                for proposal in poll.pollproposal_set.all():
+                    proposal_positive_votes = proposal.proposal_votes_info.get('positive_votes', 0)
+                    if proposal_positive_votes > poll.participants * approval_minimum:
+                        approval_minimum_completed = True
+                        # Break the loop if the approval minimum is met
+                        break
+                
+                if approval_minimum_completed and not poll.finalization_period_start:
+                    poll.finalization_period_start = timezone.now()
+                
+                if not approval_minimum_completed:
+                    # Set finalization period start to None if approval minimum is not met
+                    poll.finalization_period_start = None
 
-            poll.save()
+                poll.save()
 
-            if poll.finalization_period_start:
-                # Check if the finalization period is over
-                if poll.finalization_period_start + poll.finalization_period < timezone.now():
-                    poll.status = 1
-                    poll.result = True
-                    poll.save()
+                if poll.finalization_period_start and poll.finalization_period:
+                    # Check if the finalization period is over
+                    if poll.finalization_period_start + poll.finalization_period < timezone.now():
+                        poll.status = 1
+                        poll.result = True
+                        poll.save()

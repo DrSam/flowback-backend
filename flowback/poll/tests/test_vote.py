@@ -16,6 +16,8 @@ from ..views.vote import (PollProposalDelegateVoteUpdateAPI,
 from ...files.tests.factories import FileSegmentFactory
 from ...group.tests.factories import GroupFactory, GroupUserFactory, GroupUserDelegateFactory, GroupTagsFactory
 from ...user.models import User
+from django.utils import timezone
+import time
 
 
 class PollVoteTest(APITransactionTestCase):
@@ -30,6 +32,9 @@ class PollVoteTest(APITransactionTestCase):
                                          tag=GroupTagsFactory(group=self.group), **generate_poll_phase_kwargs('vote'))
         self.poll_cardinal = PollFactory(created_by=self.group_user_one, poll_type=Poll.PollType.CARDINAL,
                                          tag=GroupTagsFactory(group=self.group), **generate_poll_phase_kwargs('vote'))
+
+
+                                
         self.group_users = [self.group_user_one, self.group_user_two, self.group_user_three]
         (self.poll_schedule_proposal_one,
          self.poll_schedule_proposal_two,
@@ -203,6 +208,68 @@ class PollVoteTest(APITransactionTestCase):
 
         self.assertEqual(event.start_date, self.poll_schedule_proposal_three.pollproposaltypeschedule.event.start_date)
         self.assertEqual(event.end_date, self.poll_schedule_proposal_three.pollproposaltypeschedule.event.end_date)
+
+
+    def test_vote_count_cardinal_dynamic(self):
+        poll_cardinal_dynamic = PollFactory(
+            created_by=self.group_user_one, poll_type=Poll.PollType.CARDINAL,
+            tag=GroupTagsFactory(group=self.group),
+            dynamic=True,
+            approval_minimum=99,
+            finalization_period="00:00:02",
+            end_date=timezone.now() + timezone.timedelta(days=5),
+            quorum=74,
+            **generate_poll_phase_kwargs('vote', exclude=['end_date'])
+        )
+
+        (
+            poll_cardinal_dynamic_proposal_one,
+            poll_cardinal_dynamic_proposal_two,
+            poll_cardinal_dynamic_proposal_three
+        ) = [
+                PollProposalFactory(created_by=x, poll=poll_cardinal_dynamic) for x in self.group_users
+            ]
+
+
+        user = self.group_user_two.user
+        proposals = [poll_cardinal_dynamic_proposal_two, poll_cardinal_dynamic_proposal_three]
+        scores = [78, 22]
+        response = self.cardinal_vote_update(user, poll_cardinal_dynamic, proposals, scores)
+        self.assertEqual(response.status_code, 200, response.data)
+
+        user = self.group_user_one.user
+        proposals = [poll_cardinal_dynamic_proposal_three, poll_cardinal_dynamic_proposal_one]
+        scores = [23, 99]
+        response = self.cardinal_vote_update(user, poll_cardinal_dynamic, proposals, scores)
+        self.assertEqual(response.status_code, 200, response.data)
+
+        user = self.group_user_three.user
+        proposals = [poll_cardinal_dynamic_proposal_three, poll_cardinal_dynamic_proposal_two]
+        scores = [14, 86]
+        response = self.cardinal_vote_update(user, poll_cardinal_dynamic, proposals, scores)
+        self.assertEqual(response.status_code, 200, response.data)
+
+        Poll.objects.filter(id=poll_cardinal_dynamic.id).update(**generate_poll_phase_kwargs('result'))
+
+        poll_proposal_vote_count(poll_id=poll_cardinal_dynamic.id)
+
+        # Sleeping for 10 Seconds to allow finalization period to pass
+        print("Sleeping for 3 seconds")
+        time.sleep(3)
+        poll_cardinal_dynamic.refresh_from_db()
+        poll_proposal_vote_count(poll_id=poll_cardinal_dynamic.id)
+        
+
+        poll_cardinal_dynamic_proposal_one.refresh_from_db()
+        poll_cardinal_dynamic_proposal_two.refresh_from_db()
+        poll_cardinal_dynamic_proposal_three.refresh_from_db()
+        poll_cardinal_dynamic.refresh_from_db()
+        
+        self.assertEqual(poll_cardinal_dynamic_proposal_one.score, 99)
+        self.assertEqual(poll_cardinal_dynamic_proposal_two.score, 164)
+        self.assertEqual(poll_cardinal_dynamic_proposal_three.score, 59)
+
+        self.assertEqual(poll_cardinal_dynamic.result, True)
 
 class PollDelegateVoteTest(APITransactionTestCase):
     reset_sequences = True

@@ -3,6 +3,7 @@ from pathlib import Path
 
 from celery import Celery
 import environ
+from celery.schedules import crontab
 
 env = environ.Env(RABBITMQ_BROKER_URL=str)
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -24,7 +25,12 @@ app.config_from_object('django.conf:settings', namespace='CELERY')
 # Load task modules from all registered Django apps.
 app.autodiscover_tasks()
 
+app.conf.beat_schedule = {
+    "daily_process_poll_finishing_criteria": {
+        "task": "daily_process_poll_finishing_criteria",
+        "schedule": 30.0,
+    },
+}
 
-@app.task(bind=True)
-def debug_task(self):
-    print(f'Request: {self.request!r}')
+
+

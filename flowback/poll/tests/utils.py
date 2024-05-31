@@ -2,7 +2,7 @@ from django.utils import timezone
 
 
 # Generates kwargs for Poll to match the given phase
-def generate_poll_phase_kwargs(poll_start_phase: str = 'base') -> dict:
+def generate_poll_phase_kwargs(poll_start_phase: str = 'base', exclude=[]) -> dict:
     match poll_start_phase:
         case 'waiting':
             poll_offset_hours = -1
@@ -27,11 +27,17 @@ def generate_poll_phase_kwargs(poll_start_phase: str = 'base') -> dict:
 
     def phase(hour: int): return timezone.now() + timezone.timedelta(hours=hour - poll_offset_hours)
 
-    return dict(start_date=phase(0),
+    arguments =  dict(start_date=phase(0),
                 area_vote_end_date=phase(1),
                 proposal_end_date=phase(2),
                 prediction_statement_end_date=phase(3),
                 prediction_bet_end_date=phase(4),
                 delegate_vote_end_date=phase(5),
                 vote_end_date=phase(6),
-                end_date=phase(7))
+                end_date=phase(7)
+            )
+    
+    for key in exclude:
+        del arguments[key]
+    
+    return arguments

@@ -190,3 +190,24 @@ def poll_prediction_bet_count(poll_id: int):
 
         statement.combined_bet = combined_bet
         statement.save()
+
+
+
+@shared_task(
+    name="daily_process_poll_finishing_criteria",
+)
+def daily_process_poll_finishing_criteria():
+    from flowback.poll.services.poll import poll_refresh
+    polls = Poll.objects.filter(
+        dynamic=True,
+    ).exclude(
+        result=True,
+    )
+
+    for poll in polls:
+        poll_refresh(
+            poll_id=poll.id,
+        )
+    
+
+

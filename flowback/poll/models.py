@@ -100,6 +100,13 @@ class Poll(BaseModel):
         null=True,
         blank=True,
     )
+    finalization_period_start = models.DateTimeField(
+        name='finalization_period_start',
+        help_text='Time when the finalization period started',
+        null=True,
+        blank=True,
+    )
+
 
     @property
     def finished(self):
@@ -286,6 +293,11 @@ class PollProposal(BaseModel):
     positive_votes = models.IntegerField(null=True, blank=True)
 
     score = models.IntegerField(null=True, blank=True)
+
+    proposal_votes_info = models.JSONField(
+        null=True, blank=True,
+        default=dict,
+    )
 
     @property
     def schedule_origin(self):
