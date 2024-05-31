@@ -52,6 +52,8 @@ def poll_list(*, fetched_by: User, group_id: Union[int, None], filters=None):
         group_user_permissions(group=group_id, user=fetched_by)
         qs = Poll.objects.filter(created_by__group_id=group_id) \
             .annotate(total_comments=Count('comment_section__comment', filters=dict(active=True)),
+                      total_proposals=Count('pollproposal'),
+                      total_predictions=Count('pollpredictionstatement'),
                       priority=Sum('pollpriority__score', output_field=models.IntegerField(), default=0),
                       user_priority=Subquery(
                           PollPriority.objects.filter(poll=OuterRef('id'),
@@ -72,6 +74,9 @@ def poll_list(*, fetched_by: User, group_id: Union[int, None], filters=None):
                        PollPriority.objects.filter(poll=OuterRef('id'),
                                                    group_user__user=fetched_by).values('score'),
                        output_field=models.IntegerField()),
-                   total_comments=Count('comment_section__comment', filters=dict(active=True))).all()
+                   total_comments=Count('comment_section__comment', filters=dict(active=True)),
+                   total_proposals=Count('pollproposal'),
+                   total_predictions=Count('pollpredictionstatement')
+                   ).all()
 
     return BasePollFilter(filters, qs).qs

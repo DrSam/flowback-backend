@@ -236,7 +236,7 @@ class Poll(BaseModel):
 
     def check_phase(self, *phases: str):
         if not any(self.phase_exist(phase, raise_exception=False) for phase in phases):
-            raise ValidationError(f'Action is unavailable during this poll phase')
+            raise ValidationError(f'Action is unavailable for this poll')
 
         current_phase = self.current_phase
         if current_phase not in phases:
@@ -426,6 +426,10 @@ class PollAreaStatement(BaseModel):
 class PollAreaStatementSegment(BaseModel):
     poll_area_statement = models.ForeignKey(PollAreaStatement, on_delete=models.CASCADE)
     tag = models.ForeignKey(GroupTags, on_delete=models.CASCADE)
+
+    def clean(self):
+        if self.tag.active is False:
+            raise ValidationError("Tag must be active")
 
 
 class PollAreaStatementVote(BaseModel):

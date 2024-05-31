@@ -27,6 +27,7 @@ group_kanban = KanbanManager(origin_type='group')
 group_notification = NotificationManager(sender_type='group', possible_categories=['group', 'members', 'invite',
                                                                                    'delegate', 'poll', 'kanban',
                                                                                    'schedule', 'poll_schedule'])
+group_thread_notification = NotificationManager(sender_type='group_thread', possible_categories=['comment'])
 
 
 def group_notification_subscribe(*, user_id: int, group: int, categories: list[str]):
@@ -515,13 +516,13 @@ def group_thread_delete(user_id: int, thread_id: int):
     thread.delete()
 
 
-def group_thread_comment_create(user_id: int,
+def group_thread_comment_create(author_id: int,
                                 thread_id: int,
-                                message: str,
+                                message: str = None,
                                 attachments: list = None,
                                 parent_id: int = None):
     thread = get_object(GroupThread, id=thread_id)
-    group_user = group_user_permissions(user=user_id, group=thread.created_by.group)
+    group_user = group_user_permissions(user=author_id, group=thread.created_by.group)
 
     comment = comment_create(author_id=group_user.user.id,
                              comment_section_id=thread.comment_section.id,
@@ -530,34 +531,51 @@ def group_thread_comment_create(user_id: int,
                              attachments=attachments,
                              attachment_upload_to="group/thread/attachments")
 
+    group_thread_notification.create(sender_id=thread.id,
+                                     related_id=comment.id,
+                                     action=group_thread_notification.Action.create,
+                                     category='comment',
+                                     message=f'User "{group_user.user.username}" commented on thread "{thread.title}"')
+
     return comment
 
 
-def group_thread_comment_update(user_id: int, thread_id: int, comment_id: int, data):
+def group_thread_notification_subscribe(user_id: int, thread_id: int, categories: list[str]):
+    thread = get_object(GroupThread, id=thread_id)
+    group_user_permissions(user=user_id, group=thread.created_by.group)
+
+    group_notification.channel_subscribe(user_id=user_id,
+                                         sender_id=thread.id,
+                                         category=categories)
+
+    return True
+
+
+def group_thread_comment_update(author_id: int, thread_id: int, comment_id: int, data):
     thread = get_object(GroupThread, id=thread_id)
     comment = get_object(Comment, id=comment_id)
 
-    group_user = group_user_permissions(user=user_id, group=thread.created_by.group)
+    group_user = group_user_permissions(user=author_id, group=thread.created_by.group)
 
-    if comment.author != user_id and not group_user.is_admin:
+    if comment.author.id != author_id and not group_user.is_admin:
         raise ValidationError('Comment is not owned by user.')
 
-    return comment_update(fetched_by=user_id,
+    return comment_update(fetched_by=author_id,
                           comment_section_id=thread.comment_section_id,
                           comment_id=comment_id,
                           data=data)
 
 
-def group_thread_comment_delete(user_id: int, thread_id: int, comment_id: int):
+def group_thread_comment_delete(author_id: int, thread_id: int, comment_id: int):
     thread = get_object(GroupThread, id=thread_id)
     comment = get_object(Comment, id=comment_id)
 
-    group_user = group_user_permissions(user=user_id, group=thread.created_by.group)
+    group_user = group_user_permissions(user=author_id, group=thread.created_by.group)
 
-    if comment.author != user_id and not group_user.is_admin:
+    if comment.author.id != author_id and not group_user.is_admin:
         raise ValidationError('Comment is not owned by user.')
 
-    return comment_delete(fetched_by=user_id,
+    return comment_delete(fetched_by=author_id,
                           comment_section_id=thread.comment_section_id,
                           comment_id=comment_id)
 

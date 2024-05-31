@@ -77,6 +77,8 @@ class PollListApi(APIView):
         hide_poll_users = serializers.BooleanField(source='created_by.group.hide_poll_users')
         message_channel_topic_id = serializers.IntegerField(source='message_channel_topic.id')
         total_comments = serializers.IntegerField()
+        total_proposals = serializers.IntegerField()
+        total_predictions = serializers.IntegerField()
         priority = serializers.IntegerField()
         user_priority = serializers.IntegerField()
 
@@ -93,43 +95,45 @@ class PollListApi(APIView):
         class Meta:
             model = Poll
             fields = (
-                    'id',
-                    'group_id',
-                    'group_name',
-                    'group_image',
-                    'created_by',
-                    'group_joined',
-                    'hide_poll_users',
-                    'title',
-                    'description',
-                    'poll_type',
-                    'allow_fast_forward',
-                    'public',
-                    'tag',
-                    'tag_name',
-                    'start_date',
-                    'proposal_end_date',
-                    'prediction_statement_end_date',
-                    'area_vote_end_date',
-                    'prediction_bet_end_date',
-                    'delegate_vote_end_date',
-                    'vote_end_date',
-                    'end_date',
-                    'result',
-                    'participants',
-                    'pinned',
-                    'dynamic',
-                    'total_comments',
-                    'priority',
-                    'user_priority',
-                    'quorum',
-                    'status',
-                    'message_channel_topic_id',
-                    'attachments',
-                    'approval_minimum',
-                    'finalization_period',
-                    'parent'
-                )
+                      'id',
+                      'group_id',
+                      'group_name',
+                      'group_image',
+                      'created_by',
+                      'group_joined',
+                      'hide_poll_users',
+                      'title',
+                      'description',
+                      'poll_type',
+                      'allow_fast_forward',
+                      'public',
+                      'tag',
+                      'tag_name',
+                      'start_date',
+                      'proposal_end_date',
+                      'prediction_statement_end_date',
+                      'area_vote_end_date',
+                      'prediction_bet_end_date',
+                      'delegate_vote_end_date',
+                      'vote_end_date',
+                      'end_date',
+                      'result',
+                      'participants',
+                      'pinned',
+                      'dynamic',
+                      'total_comments',
+                      'total_proposals',
+                      'total_predictions',
+                      'priority',
+                      'user_priority',
+                      'quorum',
+                      'status',
+                      'message_channel_topic_id',
+                      'attachments',
+                      'approval_minimum',
+                      'finalization_period',
+                      'parent'
+                    )
 
     def get(self, request, group_id: int = None):
         filter_serializer = self.FilterSerializer(data=request.query_params)
