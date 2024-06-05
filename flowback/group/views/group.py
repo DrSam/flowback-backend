@@ -81,19 +81,23 @@ class GroupDetailApi(APIView):
 
         class Meta:
             model = Group
-            fields = ('created_by',
-                      'active',
-                      'direct_join',
-                      'public',
-                      'hide_poll_users',
-                      'default_permission',
-                      'name',
-                      'description',
-                      'image',
-                      'cover_image',
-                      'member_count',
-                      'chat_id',
-                      'jitsi_room')
+            fields = (
+                        'created_by',
+                        'active',
+                        'direct_join',
+                        'public',
+                        'hide_poll_users',
+                        'default_permission',
+                        'name',
+                        'description',
+                        'image',
+                        'cover_image',
+                        'member_count',
+                        'chat_id',
+                        'jitsi_room',
+                        'default_approval_minimum',
+                        'default_finalization_period',
+                    )
 
     def get(self, request, group: int):
         group = group_detail(fetched_by=request.user, group_id=group)
@@ -131,6 +135,8 @@ class GroupUpdateApi(APIView):
         direct_join = serializers.BooleanField(required=False)
         default_permission = serializers.IntegerField(required=False, allow_null=True)
         default_quorum = serializers.IntegerField(required=False, allow_null=True)
+        default_approval_minimum = serializers.IntegerField(required=False, allow_null=True)
+        default_finalization_period = serializers.DurationField(required=False, allow_null=True)
 
     def post(self, request, group: int):
         serializer = self.InputSerializer(data=request.data)

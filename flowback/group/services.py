@@ -60,20 +60,37 @@ def group_create(*, user: int, name: str, description: str, hide_poll_users: boo
 
 
 def group_update(*, user: int, group: int, data) -> Group:
-    group_user = group_user_permissions(group=group, user=user, permissions=['admin'])
-    non_side_effect_fields = ['name', 'description', 'image', 'cover_image', 'hide_poll_users',
-                              'public', 'direct_join', 'default_permission', 'default_quorum']
+    group_user = group_user_permissions(group=group, user=user, permissions=["admin"])
+    non_side_effect_fields = [
+        "name",
+        "description",
+        "image",
+        "cover_image",
+        "hide_poll_users",
+        "public",
+        "direct_join",
+        "default_permission",
+        "default_quorum",
+        "default_approval_minimum",
+        "default_finalization_period",
+    ]
 
     # Check if group_permission exists to allow for a new default_permission
-    if default_permission := data.get('default_permission'):
-        data['default_permission'] = get_object(GroupPermissions, id=default_permission, author_id=group)
+    if default_permission := data.get("default_permission"):
+        data["default_permission"] = get_object(
+            GroupPermissions, id=default_permission, author_id=group
+        )
 
-    group, has_updated = model_update(instance=group_user.group,
-                                      fields=non_side_effect_fields,
-                                      data=data)
+    group, has_updated = model_update(
+        instance=group_user.group, fields=non_side_effect_fields, data=data
+    )
 
-    group_notification.create(sender_id=group.id, action=group_notification.Action.update, category='group',
-                              message=f'{group_user.user.username} updated the group information in {group.name}')
+    group_notification.create(
+        sender_id=group.id,
+        action=group_notification.Action.update,
+        category="group",
+        message=f"{group_user.user.username} updated the group information in {group.name}",
+    )
 
     return group
 
@@ -95,27 +112,31 @@ def group_permission_create(*,
     return group_permission
 
 
-def group_permission_update(*, user: int, group: int, permission_id: int, data) -> GroupPermissions:
-    group_user_permissions(group=group, user=user, permissions=['admin'])
-    non_side_effect_fields = ['role_name',
-                              'invite_user',
-                              'create_poll',
-                              'poll_fast_forward',
-                              'poll_quorum',
-                              'allow_vote',
-                              'kick_members',
-                              'ban_members',
-                              'create_proposal',
-                              'update_proposal',
-                              'delete_proposal',
-                              'force_delete_poll',
-                              'force_delete_proposal',
-                              'force_delete_comment']
+def group_permission_update(
+    *, user: int, group: int, permission_id: int, data
+) -> GroupPermissions:
+    group_user_permissions(group=group, user=user, permissions=["admin"])
+    non_side_effect_fields = [
+        "role_name",
+        "invite_user",
+        "create_poll",
+        "poll_fast_forward",
+        "poll_quorum",
+        "allow_vote",
+        "kick_members",
+        "ban_members",
+        "create_proposal",
+        "update_proposal",
+        "delete_proposal",
+        "force_delete_poll",
+        "force_delete_proposal",
+        "force_delete_comment",
+    ]
     group_permission = get_object(GroupPermissions, id=permission_id, author_id=group)
 
-    group_permission, has_updated = model_update(instance=group_permission,
-                                                 fields=non_side_effect_fields,
-                                                 data=data)
+    group_permission, has_updated = model_update(
+        instance=group_permission, fields=non_side_effect_fields, data=data
+    )
 
     return group_permission
 

@@ -6,20 +6,49 @@ from backend.settings import SCORE_VOTE_CEILING, SCORE_VOTE_FLOOR
 from flowback.common.services import get_object
 from flowback.group.models import GroupUserDelegatePool, GroupUser
 from flowback.poll.models import (
-    Poll, 
-    PollProposal, 
-    PollVoting, 
-    PollVotingTypeRanking, 
-    PollDelegateVoting, 
+    Poll,
+    PollProposal,
+    PollVoting,
+    PollVotingTypeRanking,
+    PollDelegateVoting,
     PollVotingTypeForAgainst,
     PollVotingTypeCardinal,
-    PollPriority
+    PollPriority,
 )
 from flowback.group.selectors import group_user_permissions
 from flowback.group.services import group_schedule
 from django.utils import timezone
 
 from flowback.schedule.services import create_event
+from django.db.models import Count, Case, When, IntegerField, F, Value, JSONField
+from django.db.models.functions import Cast
+from django.db.models.expressions import CombinedExpression
+
+# Prepare JSON structure using annotations and perform a bulk update
+from django.db.models import Subquery, OuterRef, Count, IntegerField, Func, F
+from django.db.models.expressions import RawSQL
+
+from django.db.models import Max
+from django.db.models.fields.json import KeyTextTransform
+
+
+def update_proposal_votes_info(proposal: PollProposal, other_fields: dict):
+    proposal.proposal_votes_info = {
+        "positive_votes": proposal.positive_votes_temp,
+        "negative_votes": proposal.negative_votes_temp,
+        "blank_votes": proposal.blank_votes_temp,
+    }
+
+    for key, value in other_fields.items():
+        setattr(proposal, key, value)
+
+    return proposal
+
+
+class JSONBuildObject(Func):
+    function = "JSON_BUILD_OBJECT"
+    template = "%(function)s(%(expressions)s)"
+    arg_joiner = ", "
 
 
 def poll_proposal_vote_update(*, user_id: int, poll_id: int, data: dict) -> None:
@@ -185,46 +214,87 @@ def poll_proposal_vote_count(*, poll_id: int) -> None:
     total_proposals = poll.pollproposal_set.count()
 
     def save_participants_count(voting_type_class):
-        blank_votes = voting_type_class.objects.filter(author__poll=poll, score=0).count()
-        blank_votes += voting_type_class.objects.filter(
-            author_delegate__poll=poll, score=0
-        ).annotate(total_blank_votes=Subquery(mandate_subquery)).aggregate(blank_votes=Sum('total_blank_votes')
-                                                                           ).get('total_blank_votes') or 0
+        blank_votes = voting_type_class.objects.filter(
+            author__poll=poll, score=0
+        ).count()
+        blank_votes += (
+            voting_type_class.objects.filter(author_delegate__poll=poll, score=0)
+            .annotate(total_blank_votes=Subquery(mandate_subquery))
+            .aggregate(blank_votes=Sum("total_blank_votes"))
+            .get("total_blank_votes")
+            or 0
+        )
 
         participants = voting_type_class.objects.filter(author__poll=poll).count()
-        participants += voting_type_class.objects.filter(author_delegate__poll=poll
-                                                         ).annotate(participants=Subquery(mandate_subquery)
-                                                                    ).aggregate(total_participants=Sum(participants)
-                                                                                ).get('total_participants') or 0
+        participants += (
+            voting_type_class.objects.filter(author_delegate__poll=poll)
+            .annotate(participants=Subquery(mandate_subquery))
+            .aggregate(total_participants=Sum(participants))
+            .get("total_participants")
+            or 0
+        )
 
-        positive_votes = voting_type_class.objects.filter(author__poll=poll, score__gt=0
-                                                          ).count()
-        positive_votes += voting_type_class.objects.filter(author_delegate__poll=poll, score__gt=0
-                                                           ).annotate(
-            positive_votes=Subquery(mandate_subquery)).aggregate(total_positive_votes=Sum('positive_votes')
-                                                                 ).get('total_positive_votes') or 0
-  
-        PollProposal.objects.filter(poll=poll).update(blank_votes=blank_votes,
-                                                      participants=participants,
-                                                      positive_votes=positive_votes)
+        positive_votes = voting_type_class.objects.filter(
+            author__poll=poll, score__gt=0
+        ).count()
+        positive_votes += (
+            voting_type_class.objects.filter(author_delegate__poll=poll, score__gt=0)
+            .annotate(positive_votes=Subquery(mandate_subquery))
+            .aggregate(total_positive_votes=Sum("positive_votes"))
+            .get("total_positive_votes")
+            or 0
+        )
 
-        # Fill up the proposal_votes_info field with the votes negative votes and blank votes, for each proposal
+        # Bulk update to save the new proposal_votes_info, positive_votes, participants and blank_votes
+        poll.pollproposal_set.bulk_update(
+            [
+                update_proposal_votes_info(
+                    # Use lambda to update blank_votes, participants and positive_votes
+                    proposal = proposal,
+                    other_fields = {
+                        "blank_votes": blank_votes,
+                        "participants": participants,
+                        "positive_votes": positive_votes,
+                    }
+                )
+                for proposal in poll.pollproposal_set.annotate(
+                    positive_votes_temp=Subquery(
+                        voting_type_class.objects.filter(
+                            author__poll=poll, proposal=OuterRef("id"), score__gt=0
+                        )
+                        .values("proposal")
+                        .annotate(count=Count("id"))
+                        .values("count"),
+                        output_field=IntegerField(),
+                    ),
+                    negative_votes_temp=Subquery(
+                        voting_type_class.objects.filter(
+                            author__poll=poll, proposal=OuterRef("id"), score__lt=0
+                        )
+                        .values("proposal")
+                        .annotate(count=Count("id"))
+                        .values("count"),
+                        output_field=IntegerField(),
+                    ),
+                    blank_votes_temp=Subquery(
+                        voting_type_class.objects.filter(
+                            author__poll=poll, proposal=OuterRef("id"), score=0
+                        )
+                        .values("proposal")
+                        .annotate(count=Count("id"))
+                        .values("count"),
+                        output_field=IntegerField(),
+                    ),
+                )
+            ],
+            [
+                "proposal_votes_info",
+                "positive_votes",
+                "participants",
+                "blank_votes",
+            ],
+        )
 
-        for proposal in poll.pollproposal_set.all():
-            proposal_positive_votes = voting_type_class.objects.filter(
-                    author__poll=poll, proposal=proposal, score__gt=0).count()
-            proposal_negative_votes = voting_type_class.objects.filter(
-                    author__poll=poll, proposal=proposal, score__lt=0).count()
-            proposal_blank_votes = voting_type_class.objects.filter(
-                    author__poll=poll, proposal=proposal, score=0).count()
-
-            proposal.proposal_votes_info = {
-                'positive_votes': proposal_positive_votes,
-                'negative_votes': proposal_negative_votes,
-                'blank_votes': proposal_blank_votes
-            }
-            proposal.save()
-            
     # Count mandate for each delegate, multiply it by score
     # TODO Redundant
     mandate = GroupUserDelegatePool.objects.filter(polldelegatevoting__poll=poll).aggregate(
@@ -365,31 +435,41 @@ def poll_proposal_vote_count(*, poll_id: int) -> None:
 
     if poll.dynamic:
         quorum_completed = poll.participants > total_group_users * quorum
+        approval_minimum = (
+            poll.approval_minimum
+            if poll.approval_minimum is not None
+            else group.default_approval_minimum
+        ) / 100
 
         if quorum_completed:
-            if poll.approval_minimum:
-                approval_minimum = poll.approval_minimum / 100
-                # Check if the approval_minimum is met
+            if approval_minimum:
                 approval_minimum_completed = False
-                for proposal in poll.pollproposal_set.all():
-                    proposal_positive_votes = proposal.proposal_votes_info.get('positive_votes', 0)
-                    if proposal_positive_votes > poll.participants * approval_minimum:
-                        approval_minimum_completed = True
-                        # Break the loop if the approval minimum is met
-                        break
-                
-                if approval_minimum_completed and not poll.finalization_period_start:
-                    poll.finalization_period_start = timezone.now()
-                
+
+                max_positive_votes = int(
+                    poll.pollproposal_set.annotate(
+                        votes=KeyTextTransform("positive_votes", "proposal_votes_info")
+                    ).aggregate(max_positive_votes=Max("votes"))["max_positive_votes"]
+                    or 0
+                )
+
+                if max_positive_votes > poll.participants * approval_minimum:
+                    approval_minimum_completed = True
+
                 if not approval_minimum_completed:
                     # Set finalization period start to None if approval minimum is not met
                     poll.finalization_period_start = None
+
+                if approval_minimum_completed and not poll.finalization_period_start:
+                    poll.finalization_period_start = timezone.now()
 
                 poll.save()
 
                 if poll.finalization_period_start and poll.finalization_period:
                     # Check if the finalization period is over
-                    if poll.finalization_period_start + poll.finalization_period < timezone.now():
+                    if (
+                        poll.finalization_period_start + poll.finalization_period
+                        < timezone.now()
+                    ):
                         poll.status = 1
                         poll.result = True
                         poll.save()

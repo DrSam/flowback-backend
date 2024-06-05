@@ -59,6 +59,21 @@ class Group(BaseModel):
 
     jitsi_room = models.UUIDField(unique=True, default=uuid.uuid4)
 
+    default_approval_minimum = models.IntegerField(
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        name='default_approval_minimum',
+        help_text='Minimum approval percentage required for the poll to pass',
+        null=True,
+        blank=True,
+    )
+
+    default_finalization_period = models.DurationField(
+        name='default_finalization_period',
+        help_text='Time period after the poll has ended before the result is finalized',
+        null=True,
+        blank=True,
+    )
+
     class Meta:
         constraints = [models.CheckConstraint(check=~Q(Q(public=False) & Q(direct_join=True)),
                                               name='group_not_public_and_direct_join_check')]
