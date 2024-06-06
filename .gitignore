@@ -192,3 +192,5 @@ GitHub.sublime-settings
 !.vscode/extensions.json
 .history
 /static/
+
+.DS_Store

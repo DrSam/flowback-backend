@@ -5,6 +5,7 @@ from flowback.common.services import get_object
 from flowback.files.services import upload_collection
 from flowback.group.selectors import group_user_permissions
 from flowback.poll.models import PollProposal, Poll, PollProposalTypeSchedule, PollProposalPriority
+from flowback.group.models import Group
 
 # TODO proposal can be created without schedule, dangerous
 from flowback.poll.services.poll import poll_refresh_cheap
@@ -90,3 +91,60 @@ def poll_proposal_priority_update(user_id: int, proposal_id: int, score: int) ->
 
     else:
         PollProposalPriority.objects.get(group_user=group_user, proposal=proposal).delete()
+
+    check_poll_met_approval_and_quorum(proposal_id=proposal_id)
+
+
+def check_poll_met_approval_and_quorum(*,proposal_id:int) -> bool:
+    """
+    Check if a proposal within a poll has met the necessary approval and quorum requirements
+    to move to the finalization period.
+
+    Args:
+        proposal_id (int): The ID of the proposal to check.
+
+    Returns:
+        bool: True if the proposal has met both approval and quorum requirements, False otherwise.
+    
+    The function performs the following steps:
+        1. Retrieves the proposal and associated poll from the database.
+        2. Calculates the total number of active members in the poll's community.
+        3. Counts the number of positive votes for the proposal.
+        4. Checks if the poll's quorum and approval minimum values are set.
+        5. Calculates the percentage of community members that have voted.
+        6. Calculates the percentage of positive votes out of total votes.
+        7. Updates the poll status to 'finalization period' if both approval and quorum criteria are met,
+           otherwise sets it to 'ongoing'.
+    """
+
+    try:
+        proposal = PollProposal.objects.get(id=proposal_id)
+        poll = Poll.objects.get(id=proposal.poll_id)
+    except (PollProposal.DoesNotExist, Poll.DoesNotExist):
+        return False
+    
+    poll_community = poll.created_by.group
+    total_community_members = Group.objects.get(id=poll_community.id).groupuser_set.filter(user__is_active=True).count()
+    positive_proposal_votes = PollProposalPriority.objects.filter(proposal=proposal, score__gt=0).count()
+
+    # percentage of community members that have voted
+    total_proposal_votes = PollProposalPriority.objects.filter(proposal=proposal).count()
+    total_voted_community_members_percentage = (total_proposal_votes / total_community_members) * 100
+
+    if positive_proposal_votes == 0:
+        return False
+    
+    # percentage of positive votes
+    positive_votes_percentage = (positive_proposal_votes / total_proposal_votes) * 100
+
+    if total_voted_community_members_percentage >= poll.quorum and positive_votes_percentage >= poll.approval_minimum:
+        poll.status = 2 #finalization period
+        poll.finalization_period_start_date = timezone.now() 
+        poll.save()
+        return True
+    else:
+        poll.status = 0 #ongoing
+        poll.finalization_period_start_date = None
+        poll.save()
+        return False
+    

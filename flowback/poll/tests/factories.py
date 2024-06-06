@@ -46,6 +46,10 @@ class PollFactory(factory.django.DjangoModelFactory):
     vote_end_date = factory.LazyAttribute(lambda _: timezone.now() + timezone.timedelta(hours=6))
     end_date = factory.LazyAttribute(lambda _: timezone.now() + timezone.timedelta(hours=7))
 
+    quorum = factory.LazyAttribute(lambda _: fake.pyint(min_value=1, max_value=100))
+    approval_minimum = factory.LazyAttribute(lambda _: fake.pyint(min_value=1, max_value=100))
+    finalization_period = factory.LazyAttribute(lambda _: fake.pyint(min_value=3, max_value=30))
+
 
 class PollProposalFactory(factory.django.DjangoModelFactory):
     class Meta:

@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  django:
+    container_name: flowback-server
+    command: python manage.py runserver 0.0.0.0:8000
+    build: .
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+    env_file:
+      - .env
+      
+  db:
+    container_name: flowback-db
+    image: postgres:15.0-alpine
+    environment:
+      - POSTGRES_DB=flowback_db
+      - POSTGRES_USER=flowback_user
+      - POSTGRES_PASSWORD=flowback_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    restart: always
+
+  rabbitmq:
+    container_name: flowback-rabbitmq
+    image: rabbitmq:3.12.14-management
+    ports:
+      - "15672:15672"
+      - "5672:5672"
+    environment:
+      RABBITMQ_DEFAULT_USER: "flowback_user"
+      RABBITMQ_DEFAULT_PASS: "flowback_password"
+    restart: always
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+
+
+  celery:
+    container_name: flowback-celery
+    build: .
+    command: make start-celery
+    volumes:
+      - .:/app
+    depends_on:
+      - db
+      - rabbitmq
+    env_file:
+      - .env
+
+  redis:
+    image: redis:6.2.4
+    container_name: flowback-redis
+    ports:
+      - 6379:6379
+
+
+volumes:
+  postgres_data:
+  rabbitmq_data:
