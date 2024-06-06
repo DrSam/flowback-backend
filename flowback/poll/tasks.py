@@ -193,6 +193,23 @@ def poll_prediction_bet_count(poll_id: int):
         statement.save()
 
 
+@shared_task
+def check_finalization_period_and_deactivate_poll():
+    """
+    Periodically checks polls with 'finalization period' status, 
+    to see if they have reached finalization period end date to close the poll. 
+    """
+
+    finalization_period_polls = Poll.objects.filter(active=True,status=2)
+    for poll in finalization_period_polls:
+        finalization_period_end = poll.finalization_period_start_date + timezone.timedelta(days=poll.finalization_period)
+        if timezone.now() >= finalization_period_end:
+            poll.status = 1 #finished
+            poll.save()
+        else:
+            pass
+
+
 
 @shared_task(
     name="daily_process_poll_finishing_criteria",
