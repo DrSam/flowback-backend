@@ -108,8 +108,6 @@ def poll_create(*, user_id: int,
                 approval_minimum=approval_minimum,
                 finalization_period=finalization_period,
                 attachments=collection,
-                approval_minimum=approval_minimum,
-                finalization_period=finalization_period,
                 parent_id=parent_id
             )
 
