@@ -25,6 +25,9 @@ def message_create(*,
     user = get_object(User, id=user_id)
     channel = get_object(MessageChannel, id=channel_id)
     parent = get_object(Message, id=parent_id, raise_exception=False)
+    topic = None
+    if topic_id:
+        topic = get_object(MessageChannelTopic, id=topic_id, raise_exception=False)
 
     if parent and (parent.channel_id != channel_id or parent.topic_id != topic_id):
         return ValidationError("Parent does not exist")
@@ -38,12 +41,15 @@ def message_create(*,
         if attachments.user != user and attachments.channel_id != channel_id:
             raise ValidationError("Unauthorized usage of Attachments")
 
-    message = Message(user=user,
-                      channel=channel,
-                      message=message,
-                      attachments_id=attachments_id,
-                      parent=parent,
-                      topic_id=topic_id)
+    message = Message(
+            user=user,
+            channel=channel,
+            message=message,
+            attachments_id=attachments_id,
+            parent=parent,
+    )
+    if topic:
+        message.topic = topic
 
     message.full_clean()
     message.save()
