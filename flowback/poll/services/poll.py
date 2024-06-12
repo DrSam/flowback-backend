@@ -140,14 +140,6 @@ def poll_create(*, user_id: int,
                                   category='poll_schedule',
                                   message=f'Poll {poll.title} has finished, group schedule has been updated',
                                   related_id=poll.id)
-    
-    topic = message_channel_topic_create(
-        channel_id=group_user.group.chat_id,
-        topic_name=f'Poll.{poll.id}',
-    )
-
-    poll.message_channel_topic = topic
-    poll.save()
 
     return poll
 
