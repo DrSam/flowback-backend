@@ -31,6 +31,7 @@ def poll_create(*, user_id: int,
                 group_id: int,
                 title: str,
                 description: str,
+                blockchain_id: int = None,
                 start_date: datetime,
                 proposal_end_date: datetime = None,
                 prediction_statement_end_date: datetime = None,
@@ -54,10 +55,10 @@ def poll_create(*, user_id: int,
     if pinned and not group_user.is_admin:
         raise ValidationError('Permission denied')
 
-    if allow_fast_forward and not (group_user.is_admin or group_user.permission.poll_fast_forward):
+    if allow_fast_forward and not (group_user.is_admin or group_user.check_permission(poll_fast_forward=True)):
         raise ValidationError('Permission denied')
 
-    if quorum is not None and not group_user.permission.poll_quorum and not group_user.is_admin:
+    if quorum is not None and not group_user.check_permission(poll_quorum=True) and not group_user.is_admin:
         raise ValidationError("Permission denied for custom poll quorum")
 
     if dynamic and not FLOWBACK_ALLOW_DYNAMIC_POLL:
@@ -89,6 +90,7 @@ def poll_create(*, user_id: int,
                 title=title,
                 description=description,
                 start_date=start_date,
+                blockchain_id=blockchain_id,
                 proposal_end_date=proposal_end_date,
                 prediction_statement_end_date=prediction_statement_end_date,
                 area_vote_end_date=area_vote_end_date,

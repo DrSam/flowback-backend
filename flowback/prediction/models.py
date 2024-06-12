@@ -11,6 +11,8 @@ class PredictionStatement(BaseModel):
     # fk: represents relationship
     combined_bet = models.DecimalField(max_digits=8, decimal_places=7, null=True, blank=True)
 
+    blockchain_id = models.PositiveIntegerField(null=True, blank=True, default=None)
+
     class Meta:
         abstract = True
 
@@ -35,6 +37,7 @@ class PredictionStatementVote(BaseModel):
 
 class PredictionBet(BaseModel):
     score = models.IntegerField(validators=[MaxValueValidator(5), MinValueValidator(0)])
+    blockchain_id = models.PositiveIntegerField(null=True, blank=True, default=None)
     # prediction_statement: represents prediction statement
     # created_by: represents ownership
 

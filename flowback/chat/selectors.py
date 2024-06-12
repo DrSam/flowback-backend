@@ -23,7 +23,7 @@ class BaseMessageFilter(django_filters.FilterSet):
                       created_at=['gte', 'lte'])
 
 
-def message_list(*, user: User, channel_id: int, **filters):
+def message_list(*, user: User, channel_id: int, filters=None):
     filters = filters or {}
     participant = get_object(MessageChannelParticipant, channel_id=channel_id, user=user)
 
@@ -39,7 +39,7 @@ class BaseTopicFilter(django_filters.FilterSet):
                       name=['exact', 'icontains'])
 
 
-def message_channel_topic_list(*, user: User, channel_id: int, **filters):
+def message_channel_topic_list(*, user: User, channel_id: int, filters=None):
     filters = filters or {}
     participant = get_object(MessageChannelParticipant, channel_id=channel_id, user=user)
 
@@ -64,7 +64,7 @@ class BaseMessageChannelPreviewFilter(django_filters.FilterSet):
                       topic_id=['exact'])
 
 
-def message_channel_preview_list(*, user: User, **filters):
+def message_channel_preview_list(*, user: User, filters=None):
     filters = filters or {}
 
     timestamp = MessageChannelParticipant.objects.filter(user=user, channel=OuterRef('channel_id')).values('timestamp')

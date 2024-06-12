@@ -9,7 +9,7 @@ from backend.settings import env, DEFAULT_FROM_EMAIL
 from rest_framework.exceptions import ValidationError
 
 from flowback.comment.models import Comment
-from flowback.comment.services import comment_create, comment_update, comment_delete
+from flowback.comment.services import comment_create, comment_update, comment_delete, comment_vote
 from flowback.kanban.models import KanbanEntry
 from flowback.notification.services import NotificationManager
 from flowback.schedule.models import ScheduleEvent
@@ -31,9 +31,9 @@ group_thread_notification = NotificationManager(sender_type='group_thread', poss
 
 
 def group_notification_subscribe(*, user_id: int, group: int, categories: list[str]):
-    user = group_user_permissions(user=user_id, group=group)
+    group_user = group_user_permissions(user=user_id, group=group)
 
-    if 'invite' in categories and (not user.is_admin or not user.permission.invite_user):
+    if 'invite' in categories and (not group_user.is_admin or not group_user.check_permission(invite_user=True)):
         raise ValidationError('Permission denied for invite notifications')
 
     group_notification.channel_subscribe(user_id=user_id, sender_id=group, category=categories)
@@ -361,7 +361,7 @@ def group_user_delegate_remove(*, user_id: int, group_id: int, delegate_pool_id:
     delegate_rel.delete()
 
 
-def group_user_delegate_pool_create(*, user: int, group: int) -> GroupUserDelegatePool:
+def group_user_delegate_pool_create(*, user: int, group: int, blockchain_id: int = None) -> GroupUserDelegatePool:
     group_user = group_user_permissions(user=user, group=group)
 
     # To avoid duplicates (for now)
@@ -370,7 +370,10 @@ def group_user_delegate_pool_create(*, user: int, group: int) -> GroupUserDelega
     delegate_pool = GroupUserDelegatePool(group_id=group)
     delegate_pool.full_clean()
     delegate_pool.save()
-    user_delegate = GroupUserDelegate(group_id=group, group_user=group_user, pool=delegate_pool)
+    user_delegate = GroupUserDelegate(group_id=group,
+                                      group_user=group_user,
+                                      pool=delegate_pool,
+                                      blockchain_id=blockchain_id)
     user_delegate.full_clean()
     user_delegate.save()
 
@@ -580,6 +583,16 @@ def group_thread_comment_delete(author_id: int, thread_id: int, comment_id: int)
                           comment_id=comment_id)
 
 
+def group_thread_comment_vote(*, user: int, thread_id: int, comment_id: int, vote: bool):
+    group_thread = GroupThread.objects.get(id=thread_id)
+    group_user_permissions(user=user, group=group_thread.created_by.group)
+
+    return comment_vote(fetched_by=user,
+                        comment_section_id=group_thread.comment_section.id,
+                        comment_id=comment_id,
+                        vote=vote)
+
+
 def group_delegate_pool_comment_create(*,
                                        author_id: int,
                                        delegate_pool_id: int,
@@ -628,3 +641,13 @@ def group_delegate_pool_comment_delete(*,
                           comment_section_id=delegate_pool.comment_section.id,
                           comment_id=comment_id,
                           force=force)
+
+
+def group_delegate_pool_comment_vote(*, user: int, delegate_pool_id: int, comment_id: int, vote: bool):
+    delegate_pool = GroupUserDelegatePool.objects.get(id=delegate_pool_id)
+    group_user_permissions(user=user, group=delegate_pool.group)
+
+    return comment_vote(fetched_by=user,
+                        comment_section_id=delegate_pool.comment_section.id,
+                        comment_id=comment_id,
+                        vote=vote)
