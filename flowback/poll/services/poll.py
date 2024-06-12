@@ -12,7 +12,6 @@ from datetime import datetime
 
 from flowback.poll.services.vote import poll_proposal_vote_count
 from flowback.poll.tasks import poll_area_vote_count, poll_prediction_bet_count
-from flowback.user.models import User
 
 poll_notification = NotificationManager(sender_type='poll', possible_categories=['timeline',
                                                                                  'poll',
@@ -48,9 +47,12 @@ def poll_create(*, user_id: int,
                 dynamic: bool,
                 attachments: list = None,
                 quorum: int = None,
+                approval_minimum: int = None,
+                finalization_period: int = None,
                 parent_id: int = None
                 ) -> Poll:
     group_user = group_user_permissions(user=user_id, group=group_id, permissions=['create_poll', 'admin'])
+
 
     if pinned and not group_user.is_admin:
         raise ValidationError('Permission denied')
@@ -76,7 +78,7 @@ def poll_create(*, user_id: int,
 
         elif not dynamic:
             raise ValidationError('Schedule poll must be dynamic')
-
+        
     elif not all([proposal_end_date,
                   prediction_statement_end_date,
                   area_vote_end_date,
@@ -105,6 +107,8 @@ def poll_create(*, user_id: int,
                 pinned=pinned,
                 dynamic=dynamic,
                 quorum=quorum,
+                approval_minimum=approval_minimum,
+                finalization_period=finalization_period,
                 attachments=collection,
                 parent_id=parent_id)
 
@@ -205,6 +209,7 @@ def poll_delete(*, user_id: int, poll_id: int) -> None:
 def poll_fast_forward(*, user_id: int, poll_id: int, phase: str):
     poll = get_object(Poll, id=poll_id)
     group_user = group_user_permissions(user=user_id, group=poll.created_by.group.id)
+
 
     if not poll.allow_fast_forward:
         raise ValidationError("This poll can't be fast forwarded")

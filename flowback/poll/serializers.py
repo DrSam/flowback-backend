@@ -41,4 +41,6 @@ class PollSerializer(serializers.Serializer):
 
     group_joined = serializers.BooleanField(required=False)
     total_comments = serializers.IntegerField(required=False)
-    quorum = serializers.IntegerField(allow_null=True)
+    quorum = serializers.IntegerField()
+    approval_minimum = serializers.IntegerField()
+    finalization_period = serializers.IntegerField()

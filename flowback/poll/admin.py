@@ -15,7 +15,7 @@ class PollAdmin(admin.ModelAdmin):
             'fields': ('active', 'public')
         }),
         ('Dates', {
-            'fields': ('start_date', 'proposal_end_date', 'vote_start_date', 'delegate_vote_end_date', 'vote_end_date', 'end_date')
+            'fields': ('start_date', 'proposal_end_date',  'delegate_vote_end_date', 'vote_end_date', 'end_date','quorum', 'approval_minimum', 'finalization_period')
         }),
         ('Optional Dynamic Counting Support', {
             'fields': ('dynamic',)
