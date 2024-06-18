@@ -47,7 +47,7 @@ class Poll(BaseModel):
     poll_type = models.IntegerField(choices=PollType.choices)
     parent = models.ForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='children')
 
-    quorum = models.IntegerField(default=51,validators=[MinValueValidator(1), MaxValueValidator(100)])
+    quorum = models.IntegerField(default=51, validators=[MinValueValidator(1), MaxValueValidator(100)])
     approval_minimum = models.PositiveIntegerField(default=51, validators=[MinValueValidator(1), MaxValueValidator(100)])
     finalization_period = models.PositiveIntegerField(
         default=3,

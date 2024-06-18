@@ -88,6 +88,12 @@ def poll_create(*, user_id: int,
                   end_date]):
         raise ValidationError('Missing required parameter(s) for generic poll')
 
+    # Setting a non-nullable field to None will cause the SQL query to fail, this removes them if they're not set!
+    non_null_fields = {x: y for x, y in dict(quorum=quorum,
+                                             approval_minimum=approval_minimum,
+                                             finalization_period=finalization_period).items() if y is not None}
+
+
     poll = Poll(created_by=group_user,
                 title=title,
                 description=description,
@@ -106,11 +112,9 @@ def poll_create(*, user_id: int,
                 tag_id=tag,
                 pinned=pinned,
                 dynamic=dynamic,
-                quorum=quorum,
-                approval_minimum=approval_minimum,
-                finalization_period=finalization_period,
                 attachments=collection,
-                parent_id=parent_id)
+                parent_id=parent_id,
+                **non_null_fields)
 
     poll.clean()  # TODO make full clean possible for pre_save!
     poll.save()
