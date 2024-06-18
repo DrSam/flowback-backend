@@ -2,7 +2,7 @@
 #  groupdefaultpermission, grouppermissions, grouptags, groupuserdelegates
 import django_filters
 from typing import Union
-from django.db.models import Q, Exists, OuterRef, Count, Case, When, F
+from django.db.models import Q, Exists, OuterRef, Count, Case, When, F, Subquery
 from django.forms import model_to_dict
 
 from flowback.comment.selectors import comment_list
@@ -123,7 +123,11 @@ def group_folder_list():
 
 def group_kanban_entry_list(*, fetched_by: User, group_id: int, filters=None):
     group_user = group_user_permissions(group=group_id, user=fetched_by)
-    return kanban_entry_list(kanban_id=group_user.group.kanban.id, filters=filters, subscriptions=False)
+    subquery = Group.objects.filter(id=OuterRef('kanban__origin_id')).values('name')
+    return kanban_entry_list(kanban_id=group_user.group.kanban.id,
+                             filters=filters,
+                             subscriptions=False
+                             ).annotate(group_name=Subquery(subquery))
 
 
 def group_detail(*, fetched_by: User, group_id: int):
@@ -261,7 +265,9 @@ def group_thread_list(*, group_id: int, fetched_by: User, filters=None):
     filters = filters or {}
     group_user_permissions(user=fetched_by, group=group_id)
 
-    qs = GroupThread.objects.filter(created_by__group_id=group_id).all()
+    qs = GroupThread.objects.filter(created_by__group_id=group_id
+                                    ).annotate(total_comments=Count('comment_section__comments'),
+                                               filters=dict(active=True)).all()
     return BaseGroupThreadFilter(filters, qs).qs
 
 
@@ -278,4 +284,3 @@ def group_delegate_pool_comment_list(*, fetched_by: User, delegate_pool_id: int,
     group_user_permissions(group=delegate_pool.group, user=fetched_by)
 
     return comment_list(fetched_by=fetched_by, comment_section_id=delegate_pool.comment_section.id, filters=filters)
-

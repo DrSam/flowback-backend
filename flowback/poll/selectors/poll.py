@@ -10,6 +10,7 @@ from flowback.comment.models import Comment
 from flowback.common.filters import ExistsFilter
 from flowback.common.filters import NumberInFilter
 from flowback.group.models import Group
+from flowback.poll.models import Poll, PollPhaseTemplate
 from flowback.poll.models import Poll, PollPriority
 from flowback.user.models import User
 from flowback.group.selectors import group_user_permissions
@@ -27,6 +28,7 @@ class BasePollFilter(django_filters.FilterSet):
     description = django_filters.CharFilter(field_name='description', lookup_expr='icontains')
     has_attachments = ExistsFilter(field_name='attachments')
     tag_name = django_filters.CharFilter(lookup_expr=['exact', 'icontains'], field_name='tag__name')
+    tag_id = django_filters.NumberFilter(lookup_expr='exact', field_name='tag__id')
     author_ids = NumberInFilter(field_name='created_by__user_id')
     user_priority__gte = django_filters.NumberFilter(field_name='user_priority', lookup_expr='gte')
     user_priority__lte = django_filters.NumberFilter(field_name='user_priority', lookup_expr='lte')
@@ -39,7 +41,6 @@ class BasePollFilter(django_filters.FilterSet):
                       description=['exact', 'icontains'],
                       poll_type=['exact'],
                       public=['exact'],
-                      tag=['exact'],
                       status=['exact'],
                       pinned=['exact'])
 
@@ -76,7 +77,27 @@ def poll_list(*, fetched_by: User, group_id: Union[int, None], filters=None):
                        output_field=models.IntegerField()),
                    total_comments=Count('comment_section__comment', filters=dict(active=True)),
                    total_proposals=Count('pollproposal'),
-                   total_predictions=Count('pollpredictionstatement')
-                   ).all()
+                   total_predictions=Count('pollpredictionstatement')).all()
 
     return BasePollFilter(filters, qs).qs
+
+
+class BasePollPhaseTemplateFilter(django_filters.FilterSet):
+    order_by = django_filters.OrderingFilter(fields=(('created_at', 'created_at_asc'),
+                                                     ('-created_at', 'created_at_desc')))
+
+    class Meta:
+        model = PollPhaseTemplate
+        fields = dict(created_by_group_user_id=['exact'],
+                      name=['exact', 'icontains'],
+                      poll_type=['exact'],
+                      poll_is_dynamic=['exact'])
+
+
+def poll_phase_template_list(*, fetched_by: User, group_id: int, filters=None):
+    filters = filters or {}
+
+    group_user_permissions(user=fetched_by, group=group_id)
+    qs = PollPhaseTemplate.objects.filter(group_id=group_id).all()
+
+    return BasePollPhaseTemplateFilter(filters, qs).qs

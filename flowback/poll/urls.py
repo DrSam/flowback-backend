@@ -7,9 +7,15 @@ from .views.poll import (PollListApi,
                          PollUpdateAPI,
                          PollDeleteAPI,
                          PollDelegatesListAPI,
+                         PollPhaseTemplateListAPI,
+                         PollPhaseTemplateCreateAPI,
+                         PollPhaseTemplateUpdateAPI,
+                         PollPhaseTemplateDeleteAPI,
                          PollPriorityUpdateAPI)
-from .views.proposal import PollProposalListAPI, PollProposalDeleteAPI, PollProposalCreateAPI, \
-    PollProposalPriorityUpdateAPI
+from .views.proposal import (PollProposalListAPI,
+                             PollProposalDeleteAPI,
+                             PollProposalCreateAPI,
+                             PollProposalPriorityUpdateAPI)
 from .views.vote import (PollProposalVoteListAPI,
                          PollProposalVoteUpdateAPI,
                          PollProposalDelegateVoteUpdateAPI,
@@ -31,7 +37,8 @@ from .views.area import PollAreaStatementListAPI, PollAreaVoteAPI
 group_poll_patterns = [
     path('list', PollListApi.as_view(), name='polls'),
     path('create', PollCreateAPI.as_view(), name='poll_create'),
-
+    path('template/list', PollPhaseTemplateListAPI.as_view(), name='poll_phase_template_list'),
+    path('template/create', PollPhaseTemplateCreateAPI.as_view(), name='poll_phase_template_create'),
     path('prediction/statement/list', PollPredictionStatementListAPI.as_view(), name='poll_prediction_statement_list'),
     path('prediction/bet/list', PollPredictionBetListAPI.as_view(), name='poll_prediction_bet_list'),
 ]
@@ -77,6 +84,8 @@ poll_patterns = [
     path('prediction/<int:prediction_statement_id>/statement/vote/delete',
          PollPredictionStatementVoteDeleteAPI.as_view(),
          name='poll_prediction_statement_vote_delete'),
+    path('template/<int:template_id>/update', PollPhaseTemplateUpdateAPI.as_view(), name='poll_phase_template_update'),
+    path('template/<int:template_id>/delete', PollPhaseTemplateDeleteAPI.as_view(), name='poll_phase_template_delete'),
     path('<int:poll_id>/area/list', PollAreaStatementListAPI.as_view(), name='poll_area_list'),
     path('<int:poll_id>/area/update', PollAreaVoteAPI.as_view(), name='poll_area_update')
 ]
