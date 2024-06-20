@@ -12,6 +12,9 @@ from datetime import datetime
 
 from flowback.poll.services.vote import poll_proposal_vote_count
 from flowback.poll.tasks import poll_area_vote_count, poll_prediction_bet_count
+from flowback.user.models import User
+from flowback.chat.services import message_channel_create, message_channel_join, message_channel_topic_create
+
 
 poll_notification = NotificationManager(sender_type='poll', possible_categories=['timeline',
                                                                                  'poll',

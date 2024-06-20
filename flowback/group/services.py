@@ -21,6 +21,7 @@ from flowback.group.models import Group, GroupUser, GroupUserInvite, GroupUserDe
     GroupUserDelegate, GroupUserDelegatePool, GroupThread
 from flowback.group.selectors import group_user_permissions
 from flowback.common.services import model_update, get_object
+from flowback.chat.services import message_channel_create, message_channel_join
 
 group_schedule = ScheduleManager(schedule_origin_name='group', possible_origins=['poll'])
 group_kanban = KanbanManager(origin_type='group')
@@ -64,6 +65,16 @@ def group_create(*,
 
     # Generate GroupUser
     GroupUser.objects.create(user=user, group=group, is_admin=True)
+
+    message_channel = message_channel_create(
+        origin_name="group",
+        title=name,
+    )
+
+    group.chat = message_channel
+    group.save()
+
+    message_channel_join(user_id=user.id, channel_id=message_channel.id)
 
     return group
 
