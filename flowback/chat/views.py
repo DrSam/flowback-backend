@@ -32,7 +32,7 @@ class MessageListAPI(APIView):
         serializer = self.FilterSerializer(data=request.query_params)
         serializer.is_valid(raise_exception=True)
 
-        messages = message_list(user=request.user, channel_id=channel_id, **serializer.validated_data)
+        messages = message_list(user=request.user, channel_id=channel_id, filters=serializer.validated_data)
 
         return get_paginated_response(pagination_class=self.Pagination,
                                       serializer_class=self.OutputSerializer,
