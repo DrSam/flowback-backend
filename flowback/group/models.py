@@ -112,7 +112,7 @@ post_delete.connect(Group.post_delete, sender=Group)
 class GroupPermissions(BaseModel):
     role_name = models.TextField()
     author = models.ForeignKey('Group', on_delete=models.CASCADE)
-    invite_user = models.BooleanField(default=False)
+    invite_user = models.BooleanField(default=True)
     create_poll = models.BooleanField(default=True)
     poll_fast_forward = models.BooleanField(default=False)
     poll_quorum = models.BooleanField(default=False)
