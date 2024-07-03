@@ -1,13 +1,15 @@
-# TODO groups, groupusers, groupinvites, groupuserinvites,
-#  groupdefaultpermission, grouppermissions, grouptags, groupuserdelegates
 import django_filters
 from typing import Union
-from django.db.models import Q, Exists, OuterRef, Count, Case, When, F, Subquery
+
+from django.db import models
+from django.db.models import Q, Exists, OuterRef, Count, Case, When, F, Subquery, Sum
+from django.db.models.functions import Abs
 from django.forms import model_to_dict
 
-from flowback.comment.selectors import comment_list
+from flowback.comment.selectors import comment_list, comment_ancestor_list
 from flowback.common.services import get_object
 from flowback.kanban.selectors import kanban_entry_list
+from flowback.poll.models import PollPredictionStatement, Poll
 from flowback.user.models import User
 from flowback.group.models import Group, GroupUser, GroupUserInvite, GroupPermissions, GroupTags, GroupUserDelegator, \
     GroupUserDelegatePool, GroupThread, GroupFolder
@@ -33,6 +35,7 @@ def group_default_permissions(*, group: Union[Group, int]):
     return defaults
 
 
+# Check if user have any one of the permissions
 def group_user_permissions(*,
                            user: Union[User, int] = None,
                            group: Union[Group, int] = None,
@@ -88,6 +91,7 @@ def group_user_permissions(*,
     return group_user
 
 
+# Simple statement to return Q object for group visibility
 def _group_get_visible_for(user: User):
     query = Q(public=True) | Q(Q(public=False) & Q(groupuser__user__in=[user]))
     return Group.objects.filter(query)
@@ -117,6 +121,7 @@ def group_list(*, fetched_by: User, filters=None):
     return qs
 
 
+# TODO uncertain if this feature is used anywhere
 def group_folder_list():
     return GroupFolder.objects.all()
 
@@ -227,6 +232,36 @@ def group_tags_list(*, group: int, fetched_by: User, filters=None):
     return BaseGroupTagsFilter(filters, qs).qs
 
 
+def group_tags_interval_mean_absolute_error(*, tag_id: int, fetched_by: User):
+    """
+    For every combined_bet & outcome in a given tag:
+        abs(sum(combined_bet) – sum(outcome))/N
+        - N is the number of predictions that had at least one bet
+
+    TODO add this value to the group_tags_list selector
+    """
+    tag = GroupTags.objects.get(id=tag_id)
+    group_user_permissions(group=tag.group, user=fetched_by)
+
+    qs_filter = PollPredictionStatement.objects.filter(poll__tag_id=tag_id, pollpredictionstatementvote__isnull=False)
+
+    qs_annotate = qs_filter.annotate(
+        outcome_sum=Sum(Case(When(pollpredictionstatementvote__vote=True, then=1),
+                             When(pollpredictionstatementvote__vote=False, then=-1),
+                             default=0,
+                             output_field=models.IntegerField())),
+
+        outcome=Case(When(outcome_sum__gt=0, then=1),
+                     When(outcome_sum__lte=0, then=0),
+                     default=0.5,
+                     output_field=models.DecimalField(max_digits=14, decimal_places=4)),
+        has_bets=Case(When(pollpredictionbet__isnull=True, then=0), default=1),
+        p1=Abs(F('combined_bet') - F('outcome')))
+
+    qs = qs_annotate.aggregate(interval_mean_absolute_error=(Sum('p1') / Sum('has_bets')))
+    return qs.get('interval_mean_absolute_error', None)
+
+
 class BaseGroupUserDelegateFilter(django_filters.FilterSet):
     delegate_id = django_filters.NumberFilter()
     delegate_user_id = django_filters.NumberFilter(field_name='delegate__user_id')
@@ -265,9 +300,10 @@ def group_thread_list(*, group_id: int, fetched_by: User, filters=None):
     filters = filters or {}
     group_user_permissions(user=fetched_by, group=group_id)
 
-    qs = GroupThread.objects.filter(created_by__group_id=group_id
-                                    ).annotate(total_comments=Count('comment_section__comments'),
-                                               filters=dict(active=True)).all()
+    qs = (GroupThread.objects.filter(created_by__group_id=group_id)
+          .annotate(total_comments=Count('comment_section__comment',
+                                         filter=Q(comment_section__comment__active=True))).all())
+
     return BaseGroupThreadFilter(filters, qs).qs
 
 
@@ -276,6 +312,15 @@ def group_thread_comment_list(*, fetched_by: User, thread_id: int, filters=None)
     group_user_permissions(user=fetched_by, group=thread.created_by.group)
 
     return comment_list(fetched_by=fetched_by, comment_section_id=thread.comment_section_id, filters=filters)
+
+
+def group_thread_comment_ancestor_list(*, fetched_by: User, thread_id: int, comment_id: int):
+    thread = get_object(GroupThread, id=thread_id)
+    group_user_permissions(group=thread.created_by.group, user=fetched_by)
+
+    return comment_ancestor_list(fetched_by=fetched_by,
+                                 comment_section_id=thread.comment_section.id,
+                                 comment_id=comment_id)
 
 
 def group_delegate_pool_comment_list(*, fetched_by: User, delegate_pool_id: int, filters=None):

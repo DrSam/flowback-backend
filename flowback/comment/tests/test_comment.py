@@ -4,7 +4,7 @@ from rest_framework.test import APITransactionTestCase, APIRequestFactory, force
 from flowback.comment.models import Comment, CommentSection
 from flowback.comment.selectors import comment_list
 from flowback.comment.tests.factories import CommentSectionFactory, CommentFactory, CommentVoteFactory
-from flowback.comment.views import CommentListAPI, CommentVoteAPI
+from flowback.comment.views import CommentListAPI, CommentVoteAPI, CommentAncestorListAPI
 
 
 class CommentSectionTest(APITransactionTestCase):
@@ -33,6 +33,7 @@ class CommentSectionTest(APITransactionTestCase):
         factory = APIRequestFactory()
         view = CommentListAPI.as_view()
 
+        # Test all results
         request = factory.get('')
         force_authenticate(request, user=comment.author)
         response = view(request, comment_section_id=self.comment_section.id)
@@ -44,6 +45,34 @@ class CommentSectionTest(APITransactionTestCase):
         self.assertEqual(len(response.data.get('results')), 9, 'Missing comments in tree')
         self.assertTrue(all([x.get('id') == expected_order[i] for i, x in enumerate(response.data.get('results'))]),
                         'Comments are not ordered by score')
+
+        # Test filter by specific id and get related children
+        request = factory.get('', data=dict(id=comment_1.id))
+        force_authenticate(request, user=comment.author)
+        response = view(request, comment_section_id=self.comment_section.id)
+
+        expected_order = [comment_1.id, comment_11.id, comment_111.id, comment_112.id]
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data.get('results')), 4, 'Missing comments in tree')
+        self.assertTrue(all([x.get('id') == expected_order[i] for i, x in enumerate(response.data.get('results'))]),
+                        'Comments are not ordered by score')
+
+        # Test ancestor list and get related parents
+        factory = APIRequestFactory()
+        view = CommentAncestorListAPI.as_view()
+
+        request = factory.get('')
+        force_authenticate(request, user=comment.author)
+        response = view(request, comment_section_id=self.comment_section.id, comment_id=comment_22.id)
+
+        expected_order = [comment_22.id, comment_2.id, comment.id]
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data.get('results')), 3, 'Missing comments in tree')
+        self.assertTrue(all([x.get('id') == expected_order[i] for i, x in enumerate(response.data.get('results'))]),
+                        'Comments are not ordered by ancestors')
+
 
     # Test if the algorithm prioritizes potentially higher score comments
     def test_comment_vote(self):

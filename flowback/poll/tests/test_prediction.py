@@ -1,11 +1,16 @@
 import json
 import random
+from pprint import pprint
 
+from django.db import models
+from django.db.models import Sum, Case, When, F
+from django.db.models.functions import Abs
 from django.utils import timezone
 from rest_framework.test import APIRequestFactory, force_authenticate, APITransactionTestCase
 
 from flowback.group.models import GroupUser
-from flowback.group.tests.factories import GroupFactory, GroupUserFactory
+from flowback.group.tests.factories import GroupFactory, GroupUserFactory, GroupTagsFactory
+from flowback.group.views.tag import GroupTagsListApi, GroupTagIntervalMeanAbsoluteErrorAPI
 from flowback.poll.models import Poll, PollPredictionStatement, PollPredictionStatementSegment, PollPredictionBet, \
     PollPredictionStatementVote
 from flowback.poll.tasks import poll_prediction_bet_count
@@ -40,6 +45,7 @@ class PollPredictionStatementTest(APITransactionTestCase):
         self.poll = PollFactory(created_by=self.user_group_creator,
                                 poll_type=4,
                                 dynamic=True,
+                                tag=GroupTagsFactory(group=self.user_group_creator.group),
                                 **generate_poll_phase_kwargs('prediction_statement'))
         (self.proposal_one,
          self.proposal_two,
@@ -280,38 +286,95 @@ class PollPredictionStatementTest(APITransactionTestCase):
     def test_poll_prediction_combined_bet(self):
         # Make random previous bets
         poll_one_bets = [self.BetUser(group_user=self.user_prediction_caster_one,
-                                      score=4,
+                                      score=0,
                                       vote=True),
                          self.BetUser(group_user=self.user_prediction_caster_two,
-                                      score=3,
-                                      vote=False),
+                                      score=0,
+                                      vote=True),
                          self.BetUser(group_user=self.user_prediction_caster_three,
                                       score=0,
-                                      vote=False)]
-
-        poll = PollFactory(created_by=self.user_group_creator, **generate_poll_phase_kwargs('prediction_vote'))
-        self.generate_previous_bet(poll=poll, bet_users=poll_one_bets)
-
-        poll_two_bets = [self.BetUser(group_user=self.user_prediction_caster_one,
-                                      score=2,
-                                      vote=True),
-                         self.BetUser(group_user=self.user_prediction_caster_two,
-                                      score=2,
-                                      vote=False),
-                         self.BetUser(group_user=self.user_prediction_caster_three,
-                                      score=5,
                                       vote=True)]
 
-        poll = PollFactory(created_by=self.user_group_creator, **generate_poll_phase_kwargs('prediction_vote'))
+        poll = PollFactory(created_by=self.user_group_creator,
+                           tag=self.poll.tag,
+                           **generate_poll_phase_kwargs('prediction_vote'))
+        self.generate_previous_bet(poll=poll, bet_users=poll_one_bets)
+        poll_prediction_bet_count(poll_id=poll.id)
+
+        poll_two_bets = [self.BetUser(group_user=self.user_prediction_caster_one,
+                                      score=0,
+                                      vote=True),
+                         self.BetUser(group_user=self.user_prediction_caster_two,
+                                      score=0,
+                                      vote=True),
+                         self.BetUser(group_user=self.user_prediction_caster_three,
+                                      score=0,
+                                      vote=True)]
+
+        poll = PollFactory(created_by=self.user_group_creator,
+                           tag=self.poll.tag,
+                           **generate_poll_phase_kwargs('prediction_vote'))
         self.generate_previous_bet(poll=poll, bet_users=poll_two_bets)
+        poll_prediction_bet_count(poll_id=poll.id)
+
+        # For irrelevant poll
+        poll_three_bets = [self.BetUser(group_user=self.user_prediction_caster_one,
+                                        score=0,
+                                        vote=True),
+                           self.BetUser(group_user=self.user_prediction_caster_two,
+                                        score=3,
+                                        vote=True),
+                           self.BetUser(group_user=self.user_prediction_caster_three,
+                                        score=3,
+                                        vote=True)]
+
+        poll = PollFactory(created_by=self.user_group_creator,
+                           tag=GroupTagsFactory(),
+                           **generate_poll_phase_kwargs('prediction_vote'))
+        self.generate_previous_bet(poll=poll, bet_users=poll_three_bets)
+        poll_prediction_bet_count(poll_id=poll.id)
 
         # Calculate combined_bet
         (self.prediction_one,
          self.prediction_two,
          self.prediction_three) = [PollPredictionBetFactory(prediction_statement=self.prediction_statement,
+                                                            score=0,
                                                             created_by=group_user,
                                                             ) for group_user in [self.user_prediction_caster_one,
                                                                                  self.user_prediction_caster_two,
                                                                                  self.user_prediction_caster_three]]
 
         poll_prediction_bet_count(poll_id=self.poll.id)
+        print(self.poll.tag, self.prediction_statement.combined_bet)
+        print([i.combined_bet for i in PollPredictionStatement.objects.all()])
+
+        # Query Test
+        qs = PollPredictionStatement.objects.filter(poll__tag=self.poll.tag, pollpredictionstatementvote__isnull=False)
+
+        qs_outcome = qs.annotate(
+            outcome_sum=Sum(Case(When(pollpredictionstatementvote__vote=True, then=1),
+                                 When(pollpredictionstatementvote__vote=False, then=-1),
+                                 default=0,
+                                 output_field=models.IntegerField())),
+
+            outcome=Case(When(outcome_sum__gt=0, then=1),
+                         When(outcome_sum__lte=0, then=0),
+                         default=0.5,
+                         output_field=models.DecimalField(max_digits=14, decimal_places=4)),
+            has_bets=Case(When(pollpredictionbet__isnull=True, then=0), default=1),
+            p1=Abs(F('combined_bet') - F('outcome')))
+
+        pprint([i.__dict__ for i in qs_outcome])
+        print(qs_outcome.aggregate(interval_mean_absolute_error=(Sum('p1') / Sum('has_bets'))))
+
+        # Request Test
+        factory = APIRequestFactory()
+        user = self.user_group_creator.user
+        view = GroupTagIntervalMeanAbsoluteErrorAPI.as_view()
+
+        request = factory.get('', data=dict(limit=10))
+        force_authenticate(request, user=user)
+        response = view(request, tag_id=self.poll.tag_id)
+
+        data = json.loads(response.rendered_content)
+        pprint(data)

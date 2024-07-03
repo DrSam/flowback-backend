@@ -1,9 +1,10 @@
-# Create your views here.
+# Collection of view templates to implement the comment system for other modules
+# Do note these views should not be used directly!
 from rest_framework import serializers, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from flowback.comment.selectors import comment_list
+from flowback.comment.selectors import comment_list, comment_ancestor_list
 from flowback.comment.services import comment_create, comment_update, comment_delete, comment_vote
 from flowback.common.pagination import LimitOffsetPagination, get_paginated_response
 from flowback.files.serializers import FileSerializer
@@ -44,7 +45,7 @@ class CommentListAPI(APIView):
         message = serializers.CharField(allow_null=True)
         user_vote = serializers.BooleanField(allow_null=True)
         attachments = FileSerializer(source="attachments.filesegment_set", many=True, allow_null=True)
-        score = serializers.IntegerField()
+        score = serializers.IntegerField(source='raw_score')
 
     def get(self, request, *args, **kwargs):
         serializer = self.FilterSerializer(data=request.query_params)
@@ -57,6 +58,26 @@ class CommentListAPI(APIView):
 
         return get_paginated_response(pagination_class=self.Pagination,
                                       serializer_class=self.OutputSerializer,
+                                      queryset=comments,
+                                      request=request,
+                                      view=self)
+
+
+# Returns a list of ancestors to a specific comment
+class CommentAncestorListAPI(APIView):
+    lazy_action = comment_ancestor_list
+
+    class Pagination(LimitOffsetPagination):
+        default_limit = 20
+        max_limit = 100
+
+    def get(self, request, *args, **kwargs):
+        comments = self.lazy_action.__func__(fetched_by=request.user,
+                                             *args,
+                                             **kwargs)
+
+        return get_paginated_response(pagination_class=self.Pagination,
+                                      serializer_class=CommentListAPI.OutputSerializer,
                                       queryset=comments,
                                       request=request,
                                       view=self)

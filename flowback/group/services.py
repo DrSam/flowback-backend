@@ -10,6 +10,7 @@ from rest_framework.exceptions import ValidationError
 
 from flowback.comment.models import Comment
 from flowback.comment.services import comment_create, comment_update, comment_delete, comment_vote
+from flowback.files.services import upload_collection
 from flowback.kanban.models import KanbanEntry
 from flowback.notification.services import NotificationManager
 from flowback.schedule.models import ScheduleEvent
@@ -241,6 +242,7 @@ def group_invite_accept(*, fetched_by: int, group: int, to: int = None) -> None:
         get_object(GroupUser, 'User already joined', reverse=True, user_id=to, group=group, active=True)
         invite = get_object(GroupUserInvite, 'User has not requested invite', user_id=to, group_id=group, external=True)
 
+        # Check if user is already a group user
         if group_user := get_object(GroupUser, raise_exception=False, user_id=to, group_id=group, active=False):
             group_user.active = True
         else:
@@ -250,6 +252,7 @@ def group_invite_accept(*, fetched_by: int, group: int, to: int = None) -> None:
         invite = get_object(GroupUserInvite, 'User has not been invited', user_id=fetched_by, group_id=group,
                             external=False)
 
+        # Check if user is already a group user
         if group_user := get_object(GroupUser, raise_exception=False, user_id=fetched_by, group_id=group, active=False):
             group_user.active = True
         else:
@@ -293,7 +296,7 @@ def group_tag_update(*, user: int, group: int, tag: int, data) -> GroupTags:
     non_side_effect_fields = ['active']
 
     if (GroupTags.objects.filter(group_id=group, active=True).count() <= 1
-            and tag.is_active
+            and tag.active
             and data.get('active')):
         raise ValidationError('Group must have at least one active tag available for users')
 
@@ -321,7 +324,7 @@ def group_user_delegate(*, user: int, group: int, delegate_pool_id: int, tags: l
 
     db_tags = GroupTags.objects.filter(id__in=tags, active=True).all()
 
-    # Check if user_tags already exists
+    # Check if user_tags already exists, user's can't have multiple delegators on a single tag
     user_tags = GroupTags.objects.filter(Q(groupuserdelegator__delegator=delegator,
                                            groupuserdelegator__group_id=group) &
                                          Q(id__in=tags))
@@ -342,6 +345,7 @@ def group_user_delegate(*, user: int, group: int, delegate_pool_id: int, tags: l
     return delegate_rel
 
 
+# TODO likely needs an update
 def group_user_delegate_update(*, user_id: int, group_id: int, data):
     group_user = group_user_permissions(user=user_id, group=group_id)
 
@@ -387,13 +391,12 @@ def group_user_delegate_pool_create(*, user: int, group: int, blockchain_id: int
     # To avoid duplicates (for now)
     get_object(GroupUserDelegate, reverse=True, group=group, group_user=group_user)
 
-    delegate_pool = GroupUserDelegatePool(group_id=group)
+    delegate_pool = GroupUserDelegatePool(group_id=group, blockchain_id=blockchain_id)
     delegate_pool.full_clean()
     delegate_pool.save()
     user_delegate = GroupUserDelegate(group_id=group,
                                       group_user=group_user,
-                                      pool=delegate_pool,
-                                      blockchain_id=blockchain_id)
+                                      pool=delegate_pool)
     user_delegate.full_clean()
     user_delegate.save()
 
@@ -499,7 +502,7 @@ def group_kanban_entry_delete(*,
     return group_kanban.kanban_entry_delete(origin_id=group_id, entry_id=entry_id)
 
 
-def group_thread_create(user_id: int, group_id: int, pinned: bool, title: str):
+def group_thread_create(user_id: int, group_id: int, pinned: bool, title: str, attachments: list = None):
     group_user = group_user_permissions(user=user_id, group=group_id)
 
     if pinned:
@@ -508,22 +511,31 @@ def group_thread_create(user_id: int, group_id: int, pinned: bool, title: str):
     else:
         group_user_permissions(user=user_id, group=group_user.group)
 
-    thread = GroupThread(created_by=group_user, title=title, pinned=pinned)
+    attachments = upload_collection(user_id=user_id,
+                                    file=attachments,
+                                    upload_to='group/thread')
+
+    thread = GroupThread(created_by=group_user, title=title, pinned=pinned, attachments=attachments)
     thread.full_clean()
     thread.save()
 
     return thread
 
 
-def group_thread_update(user_id: int, thread_id: int, data):
+def group_thread_update(user_id: int, thread_id: int, data: dict):
     thread = get_object(GroupThread, id=thread_id)
-    non_side_effect_fields = ['title']
+    non_side_effect_fields = ['title', 'attachments']
 
     if 'pinned' in data.keys():
         group_user_permissions(user=user_id, group=thread.created_by.group, permissions=['admin'])
 
     else:
         group_user_permissions(user=user_id, group=thread.created_by.group)
+
+    if 'attachments' in data.keys():
+        data['attachments'] = upload_collection(user_id=user_id,
+                                                file=data.pop('attachments'),
+                                                upload_to='group/thread')
 
     thread, has_updated = model_update(instance=thread,
                                        fields=non_side_effect_fields,
