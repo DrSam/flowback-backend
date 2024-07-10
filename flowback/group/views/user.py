@@ -8,7 +8,7 @@ from flowback.group.selectors import group_user_list, group_user_invite_list
 from flowback.group.serializers import GroupUserSerializer
 
 from flowback.group.services import group_join, group_user_update, group_leave, group_invite, group_invite_accept, \
-    group_invite_reject
+    group_invite_reject, group_invite_delete
 
 
 class GroupUserListApi(APIView):
@@ -27,7 +27,6 @@ class GroupUserListApi(APIView):
     def get(self, request, group: int):
         filter_serializer = self.FilterSerializer(data=request.query_params)
         filter_serializer.is_valid(raise_exception=True)
-
         users = group_user_list(group=group,
                                 fetched_by=request.user,
                                 filters=filter_serializer.validated_data)
@@ -60,12 +59,15 @@ class GroupInviteListApi(APIView):
         external = serializers.BooleanField()
 
     def get(self, request, group: int = None):
+
+        group_id = request.query_params.get("group_id")
         filter_serializer = self.FilterSerializer(data=request.query_params)
         filter_serializer.is_valid(raise_exception=True)
 
         invites = group_user_invite_list(group=group,
                                          fetched_by=request.user,
-                                         filters=filter_serializer.validated_data)
+                                         filters=filter_serializer.validated_data,
+                                         admin_group_id=group_id)
 
         return get_paginated_response(
             pagination_class=self.Pagination,
@@ -98,7 +100,8 @@ class GroupUserUpdateApi(APIView):
     class InputSerializer(serializers.Serializer):
         user = serializers.IntegerField(required=False)
         delegate = serializers.NullBooleanField(required=False, default=None)
-        permission = serializers.IntegerField(required=False, allow_null=True, source='permission_id')
+        permission = serializers.IntegerField(
+            required=False, allow_null=True, source='permission_id')
         is_admin = serializers.IntegerField(required=False)
 
     def post(self, request, group: int):
@@ -124,7 +127,8 @@ class GroupInviteApi(APIView):
         serializer = self.InputSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        group_invite(user=request.user.id, group=group, **serializer.validated_data)
+        group_invite(user=request.user.id, group=group,
+                     **serializer.validated_data)
 
         return Response(status=status.HTTP_200_OK)
 
@@ -136,7 +140,8 @@ class GroupInviteAcceptApi(APIView):
     def post(self, request, group: int):
         serializer = self.InputSerializer(data=request.data or {})
         serializer.is_valid(raise_exception=True)
-        group_invite_accept(fetched_by=request.user.id, group=group, **serializer.validated_data)
+        group_invite_accept(fetched_by=request.user.id,
+                            group=group, **serializer.validated_data)
 
         return Response(status=status.HTTP_200_OK)
 
@@ -148,6 +153,20 @@ class GroupInviteRejectApi(APIView):
     def post(self, request, group: int):
         serializer = self.InputSerializer(data=request.data or {})
         serializer.is_valid(raise_exception=True)
-        group_invite_reject(fetched_by=request.user.id, group=group, **serializer.validated_data)
+        group_invite_reject(fetched_by=request.user.id,
+                            group=group, **serializer.validated_data)
+
+        return Response(status=status.HTTP_200_OK)
+
+
+class GroupInviteDeleteApi(APIView):
+    class InputSerializer(serializers.Serializer):
+        to = serializers.IntegerField(required=False)
+
+    def post(self, request, group: int):
+        serializer = self.InputSerializer(data=request.data or {})
+        serializer.is_valid(raise_exception=True)
+        group_invite_delete(fetched_by=request.user.id,
+                            group=group, **serializer.validated_data)
 
         return Response(status=status.HTTP_200_OK)

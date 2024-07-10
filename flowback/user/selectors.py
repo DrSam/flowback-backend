@@ -14,7 +14,8 @@ class UserFilter(FilterSet):
     class Meta:
         model = User
         fields = {'id': ['exact'],
-                  'username': ['exact', 'icontains']
+                  'username': ['exact', 'icontains'],
+                  'email': ['exact']
                   }
 
 
@@ -42,4 +43,5 @@ def user_list(*, fetched_by: User, filters=None):
 
     filters = filters or {}
     qs = User.objects.all()
+
     return UserFilter(filters, qs).qs

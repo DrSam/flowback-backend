@@ -5,6 +5,7 @@ from django.contrib.auth.password_validation import validate_password
 from django.utils import timezone
 
 from rest_framework.exceptions import ValidationError
+from rest_framework.authtoken.models import Token
 
 from backend.settings import DEFAULT_FROM_EMAIL, FLOWBACK_URL
 from flowback.common.services import model_update, get_object
@@ -19,6 +20,7 @@ user_kanban = KanbanManager(origin_type='user')
 
 def user_create(*, username: str, email: str) -> str:
     users = User.objects.filter(Q(email=email) | Q(username=username))
+
     if users.exists():
         for user in users:
             if user.email == email:
@@ -33,14 +35,13 @@ def user_create(*, username: str, email: str) -> str:
     if FLOWBACK_URL:
         link = f'''Use this link to create your account: {FLOWBACK_URL}/create_account/
                    ?email={email}&verification_code={user.verification_code}'''
-
     send_mail('Flowback Verification Code', link, DEFAULT_FROM_EMAIL, [email])
-
     return user.verification_code
 
 
 def user_create_verify(*, verification_code: str, password: str):
-    onboard_user = get_object_or_404(OnboardUser, verification_code=verification_code)
+    onboard_user = get_object_or_404(
+        OnboardUser, verification_code=verification_code)
 
     if User.objects.filter(email=onboard_user.email).exists():
         raise ValidationError('Email already registered')
@@ -52,7 +53,6 @@ def user_create_verify(*, verification_code: str, password: str):
         raise ValidationError('Verification code has already been used.')
 
     validate_password(password)
-
     model_update(instance=onboard_user,
                  fields=['is_verified'],
                  data=dict(is_verified=True))
@@ -67,19 +67,22 @@ def user_forgot_password(*, email: str):
 
     password_reset = PasswordReset.objects.create(user=user)
 
-    link = f'Use this code to reset your account password: {password_reset.verification_code}'
+    link = f'Use this code to reset your account password: {
+        password_reset.verification_code}'
 
     if FLOWBACK_URL:
         link = f'''Use this link to reset your account password: {FLOWBACK_URL}/forgot_password/
                        ?email={email}&verification_code={password_reset.verification_code}'''
 
-    send_mail('Flowback Verification Code', link, DEFAULT_FROM_EMAIL, [email])
+    send_mail('Flowback Verification Code', link,
+              DEFAULT_FROM_EMAIL, [email])
 
     return password_reset.verification_code
 
 
 def user_forgot_password_verify(*, verification_code: str, password: str):
-    password_reset = get_object_or_404(PasswordReset, verification_code=verification_code)
+    password_reset = get_object_or_404(
+        PasswordReset, verification_code=verification_code)
 
     if password_reset.is_verified:
         raise ValidationError('Verification code has already been used.')
@@ -96,8 +99,32 @@ def user_forgot_password_verify(*, verification_code: str, password: str):
     return user
 
 
+def user_reset_password_verify(verification_code, oldpassword, password: str):
+    token = Token.objects.get(key=verification_code)
+
+    user = token.user
+    password_reset = PasswordReset.objects.create(user=user)
+    # if password_reset.is_verified:
+    #     raise ValidationError('Verification code has already been used.')
+
+    # validate_password(password)
+    # user = password_reset.user
+    if (user.check_password(oldpassword) == True):
+        user.set_password(password)
+        user.save()
+    else:
+        raise ValidationError('Password is incorrect.')
+
+    model_update(instance=password_reset,
+                 fields=['is_verified'],
+                 data=dict(is_verified=True))
+
+    return user
+
+
 def user_update(*, user: User, data) -> User:
-    non_side_effects_fields = ['username', 'profile_image', 'banner_image', 'bio', 'website', 'email_notifications']
+    non_side_effects_fields = ['username', 'profile_image',
+                               'banner_image', 'bio', 'website', 'email_notifications']
 
     user, has_updated = model_update(instance=user,
                                      fields=non_side_effects_fields,
@@ -124,7 +151,8 @@ def user_schedule_event_create(*,
 
 def user_schedule_event_update(*, user_id: int, event_id: int, **data):
     user = get_object(User, id=user_id)
-    user_schedule.update_event(event_id=event_id, schedule_origin_id=user.id, data=data)
+    user_schedule.update_event(
+        event_id=event_id, schedule_origin_id=user.id, data=data)
 
 
 def user_schedule_event_delete(*, user_id: int, event_id: int):
@@ -138,7 +166,8 @@ def user_schedule_unsubscribe(*,
                               target_id: int):
     user = get_object(User, id=user_id)
     schedule = user_schedule.get_schedule(origin_id=user_id)
-    target_schedule = user_schedule.get_schedule(origin_name=target_type, origin_id=target_id)
+    target_schedule = user_schedule.get_schedule(
+        origin_name=target_type, origin_id=target_id)
     unsubscribe_schedule(schedule_id=schedule.id, target_id=target_schedule.id)
 
 

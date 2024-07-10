@@ -23,19 +23,22 @@ class Poll(BaseModel):
         RANKING = 1, _('ranking')
         FOR_AGAINST = 2, _('for_against')
         SCHEDULE = 3, _('schedule')
+        # SCHEDULE = 1001, _('schedule')
         # CARDINAL = 3, _('cardinal')
 
-    created_by = models.ForeignKey(GroupUser, on_delete=models.CASCADE)
+    created_by = models.ForeignKey(
+        GroupUser, on_delete=models.CASCADE, null=True, blank=True)
 
     # General information
     title = models.CharField(max_length=255)
     description = models.TextField()
     poll_type = models.IntegerField(choices=PollType.choices)
-    tag = models.ForeignKey(GroupTags, on_delete=models.CASCADE, null=True, blank=True)
+    tag = models.ForeignKey(
+        GroupTags, on_delete=models.CASCADE, null=True, blank=True)
     pinned = models.BooleanField(default=False)
 
     # Determines the visibility of this poll
-    active = models.BooleanField(default=True)
+    active = models.BooleanField(default=True, null=True, blank=True)
 
     # Determines if poll is visible outside of group
     public = models.BooleanField(default=False)
@@ -43,31 +46,36 @@ class Poll(BaseModel):
     # Determines the state of this poll
     start_date = models.DateTimeField()
     proposal_end_date = models.DateTimeField()
-    vote_start_date = models.DateTimeField()
-    delegate_vote_end_date = models.DateTimeField()
-    vote_end_date = models.DateTimeField()
+    vote_start_date = models.DateTimeField(
+        default='1970-01-01', null=True, blank=True)
+    delegate_vote_end_date = models.DateTimeField(
+        default='1970-01-01', null=True, blank=True)
+    vote_end_date = models.DateTimeField(
+        default='1970-01-01', null=True, blank=True)
     end_date = models.DateTimeField()
-    finished = models.BooleanField(default=False)
-    result = models.BooleanField(default=False)
+    finished = models.BooleanField(default=False, null=True, blank=True)
+    result = models.BooleanField(default=False, null=True, blank=True)
 
     # Comment section
-    comment_section = models.ForeignKey(CommentSection, default=comment_section_create, on_delete=models.DO_NOTHING)
+    comment_section = models.ForeignKey(
+        CommentSection, default=comment_section_create, on_delete=models.DO_NOTHING, null=True)
 
     # Optional dynamic counting support
-    participants = models.IntegerField(default=0)
-    dynamic = models.BooleanField()
+    participants = models.IntegerField(default=0, null=True, blank=True)
+    dynamic = models.BooleanField(default=False, null=True, blank=True)
 
     def clean(self):
         labels = ((self.start_date, 'start date'),
                   (self.proposal_end_date, 'proposal end date'),
                   (self.vote_start_date, 'vote start date'),
                   (self.delegate_vote_end_date, 'delegate vote end date'),
-                  (self.vote_end_date, 'vote end date'),
+                  #   (self.vote_end_date, 'vote end date'),
                   (self.end_date, 'end date'))
 
         for x in range(len(labels) - 1):
             if labels[x][0] > labels[x+1][0]:
-                raise ValidationError(f'{labels[x][1].title()} is greater than {labels[x+1][1]}')
+                raise ValidationError(
+                    f'{labels[x][1].title()} is greater than {labels[x+1][1]}')
 
     class Meta:
         constraints = [models.CheckConstraint(check=Q(proposal_end_date__gte=F('start_date')),
@@ -106,7 +114,8 @@ class PollVoting(BaseModel):
 
 
 class PollDelegateVoting(BaseModel):
-    created_by = models.ForeignKey(GroupUserDelegatePool, on_delete=models.CASCADE)
+    created_by = models.ForeignKey(
+        GroupUserDelegatePool, on_delete=models.CASCADE)
     poll = models.ForeignKey(Poll, on_delete=models.CASCADE)
 
     class Meta:
@@ -114,15 +123,19 @@ class PollDelegateVoting(BaseModel):
 
 
 class PollVotingTypeRanking(BaseModel):
-    author = models.ForeignKey(PollVoting, null=True, blank=True, on_delete=models.CASCADE)
-    author_delegate = models.ForeignKey(PollDelegateVoting, null=True, blank=True, on_delete=models.CASCADE)
+    author = models.ForeignKey(
+        PollVoting, null=True, blank=True, on_delete=models.CASCADE)
+    author_delegate = models.ForeignKey(
+        PollDelegateVoting, null=True, blank=True, on_delete=models.CASCADE)
 
     proposal = models.ForeignKey(PollProposal, on_delete=models.CASCADE)
     priority = models.IntegerField()  # Raw vote score
-    score = models.IntegerField(default=0)  # Calculated vote score (delegate only)
+    # Calculated vote score (delegate only)
+    score = models.IntegerField(default=0)
 
     class Meta:
-        unique_together = (('author', 'priority'), ('author_delegate', 'priority'))
+        unique_together = (('author', 'priority'),
+                           ('author_delegate', 'priority'))
 
         # Either author or author_delegate can be assigned, not both.
 
@@ -137,15 +150,19 @@ class PollVotingTypeRanking(BaseModel):
 
 
 class PollVotingTypeForAgainst(BaseModel):
-    author = models.ForeignKey(PollVoting, null=True, blank=True, on_delete=models.CASCADE)
-    author_delegate = models.ForeignKey(PollDelegateVoting, null=True, blank=True, on_delete=models.CASCADE)
+    author = models.ForeignKey(
+        PollVoting, null=True, blank=True, on_delete=models.CASCADE)
+    author_delegate = models.ForeignKey(
+        PollDelegateVoting, null=True, blank=True, on_delete=models.CASCADE)
 
     proposal = models.ForeignKey(PollProposal, on_delete=models.CASCADE)
     vote = models.BooleanField()  # Raw vote score, 0 = Against, 1 = For
-    score = models.IntegerField(default=0)  # Calculated vote score (delegate only)
+    # Calculated vote score (delegate only)
+    score = models.IntegerField(default=0)
 
     class Meta:
-        unique_together = (('author', 'proposal'), ('author_delegate', 'proposal'))
+        unique_together = (('author', 'proposal'),
+                           ('author_delegate', 'proposal'))
 
         # Either author or author_delegate can be assigned, not both.
 
@@ -165,28 +182,32 @@ class PollPredictionStatement(PredictionStatement):
 
     def clean(self):
         if self.poll.end_date < self.end_date:
-            raise ValidationError('Poll ends earlier than prediction statement end date')
+            raise ValidationError(
+                'Poll ends earlier than prediction statement end date')
 
     @receiver(post_delete, sender=PollProposal)
     def clean_prediction_statement(sender, instance: PollProposal, **kwargs):
         PollPredictionStatement.objects.filter(poll=instance.poll)\
-                                        .annotate(segment_count=Count('pollpredictionstatementsegment'))\
-                                        .filter(segment_count__lt=1)\
-                                        .delete()
+            .annotate(segment_count=Count('pollpredictionstatementsegment'))\
+            .filter(segment_count__lt=1)\
+            .delete()
 
 
 class PollPredictionStatementSegment(PredictionStatementSegment):
-    prediction_statement = models.ForeignKey(PollPredictionStatement, on_delete=models.CASCADE)
+    prediction_statement = models.ForeignKey(
+        PollPredictionStatement, on_delete=models.CASCADE)
     proposal = models.ForeignKey(PollProposal, on_delete=models.CASCADE)
 
 
 class PollPredictionStatementVote(PredictionStatementVote):
-    prediction_statement = models.ForeignKey(PollPredictionStatement, on_delete=models.CASCADE)
+    prediction_statement = models.ForeignKey(
+        PollPredictionStatement, on_delete=models.CASCADE)
     created_by = models.ForeignKey(GroupUser, on_delete=models.CASCADE)
 
 
 class PollPrediction(Prediction):
-    prediction_statement = models.ForeignKey(PollPredictionStatement, on_delete=models.CASCADE)
+    prediction_statement = models.ForeignKey(
+        PollPredictionStatement, on_delete=models.CASCADE)
     created_by = models.ForeignKey(GroupUser, on_delete=models.CASCADE)
 
     @receiver(post_save, sender=PredictionStatement)
@@ -195,4 +216,5 @@ class PollPrediction(Prediction):
 
     @receiver(post_save, sender=PollProposal)
     def reset_prediction_proposal(sender, instance: PollProposal, **kwargs):
-        PollPrediction.objects.filter(prediction_statement__pollpredictionstatementsegment__proposal=instance).delete()
+        PollPrediction.objects.filter(
+            prediction_statement__pollpredictionstatementsegment__proposal=instance).delete()

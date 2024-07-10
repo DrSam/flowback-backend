@@ -7,7 +7,7 @@ from rest_framework.views import APIView
 from flowback.user.models import OnboardUser, User
 from flowback.user.selectors import get_user, user_list
 from flowback.user.services import (user_create, user_create_verify, user_forgot_password,
-                                    user_forgot_password_verify, user_update)
+                                    user_forgot_password_verify, user_reset_password_verify, user_update)
 
 
 class UserCreateApi(APIView):
@@ -74,6 +74,39 @@ class UserForgotPasswordVerifyApi(APIView):
         return Response(status=status.HTTP_200_OK)
 
 
+class UserResetPasswordVerifyApi(APIView):
+    permission_classes = [AllowAny]
+
+    class InputSerializer(serializers.Serializer):
+        verification_code = serializers.CharField()
+        oldpassword = serializers.CharField()
+        password = serializers.CharField()
+
+    def post(self, request):
+        # Fetch data from form data
+        verification_code = str(request.data.get('verification_code'))
+        oldpassword = str(request.data.get('oldpassword'))
+        password = str(request.data.get('password'))
+
+        # Create a dictionary from form data to use with serializer
+        # data = {'verification_code': verification_code,
+        #         'oldpassword': oldpassword, 'password': password}
+        data = {'verification_code': verification_code,
+                'oldpassword': oldpassword, 'password': password}
+
+        serializers = self.InputSerializer(data=data)
+        if serializers.is_valid():
+            user_reset_password_verify(**data)
+
+        else:
+            errors = serializers.errors
+            return Response(errors, status=status.HTTP_400_BAD_REQUEST)
+
+        # serializers.is_valid(raise_exception=True)
+
+        return Response(status=status.HTTP_200_OK)
+
+
 class UserListApi(APIView):
     class Pagination(LimitOffsetPagination):
         default_limit = 1
@@ -82,19 +115,20 @@ class UserListApi(APIView):
     class FilterSerializer(serializers.Serializer):
         id = serializers.IntegerField(required=False)
         username = serializers.CharField(required=False)
+        email = serializers.CharField(required=False)
 
     class OutputSerializer(serializers.ModelSerializer):
         class Meta:
             model = User
             fields = 'id', 'username', 'profile_image', \
-                     'banner_image', 'bio', 'website'
+                     'banner_image', 'bio', 'website', 'email'
 
     def get(self, request):
         filter_serializer = self.FilterSerializer(data=request.query_params)
         filter_serializer.is_valid(raise_exception=True)
 
-        users = user_list(fetched_by=request.user, filters=filter_serializer.validated_data)
-
+        users = user_list(fetched_by=request.user,
+                          filters=filter_serializer.validated_data)
         return get_paginated_response(pagination_class=self.Pagination,
                                       serializer_class=self.OutputSerializer,
                                       queryset=users,

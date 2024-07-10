@@ -35,23 +35,36 @@ class Group(BaseModel):
     description = models.TextField()
     image = models.ImageField(upload_to='group/image')
     cover_image = models.ImageField(upload_to='group/cover_image')
-    hide_poll_users = models.BooleanField(default=False)  # Hides users in polls, TODO remove bool from views
+    # Hides users in polls, TODO remove bool from views
+    hide_poll_users = models.BooleanField(default=False)
 
-    schedule = models.ForeignKey(Schedule, null=True, blank=True, on_delete=models.SET_NULL)
-    kanban = models.ForeignKey(Kanban, null=True, blank=True, on_delete=models.SET_NULL)
+    #  default_quorum: quorum[0],
+    #                                 approval_minimum: approval[0],
+    #                                 finalization_period: days,
+    default_quorum = models.IntegerField(default=0)
+    approval_minimum = models.IntegerField(default=0)
+    finalization_period = models.IntegerField(default=0)
+
+    schedule = models.ForeignKey(
+        Schedule, null=True, blank=True, on_delete=models.SET_NULL)
+    kanban = models.ForeignKey(
+        Kanban, null=True, blank=True, on_delete=models.SET_NULL)
 
     jitsi_room = models.UUIDField(unique=True, default=uuid.uuid4)
 
     @classmethod
     def post_save(cls, instance, created, update_fields, *args, **kwargs):
         if created:
-            instance.schedule = create_schedule(name=instance.name, origin_name='group', origin_id=instance.id)
-            instance.kanban = kanban_create(name=instance.name, origin_type='group', origin_id=instance.id)
+            instance.schedule = create_schedule(
+                name=instance.name, origin_name='group', origin_id=instance.id)
+            instance.kanban = kanban_create(
+                name=instance.name, origin_type='group', origin_id=instance.id)
             instance.save()
             return
 
         if update_fields:
-            fields = [field.name for field in update_fields]
+            # fields = [field.name for field in update_fields]
+            fields = [field for field in update_fields]
 
             if 'name' in fields:
                 instance.schedule.name = instance.name
@@ -108,7 +121,8 @@ class GroupUser(BaseModel):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     group = models.ForeignKey(Group, on_delete=models.CASCADE)
     is_admin = models.BooleanField(default=False)
-    permission = models.ForeignKey(GroupPermissions, null=True, blank=True, on_delete=models.SET_NULL)
+    permission = models.ForeignKey(
+        GroupPermissions, null=True, blank=True, on_delete=models.SET_NULL)
 
     @classmethod
     # Updates Schedule name
@@ -138,6 +152,11 @@ class GroupUserInvite(BaseModel):
     group = models.ForeignKey(Group, on_delete=models.CASCADE)
     external = models.BooleanField()
 
+    # status:0 Invite
+    # status:1 Accept
+    # status:0 Reject
+    status = models.IntegerField(default=0)
+
     class Meta:
         unique_together = ('user', 'group')
 
@@ -157,8 +176,10 @@ class GroupUserDelegate(BaseModel):
 
 # Delegator to delegate relations
 class GroupUserDelegator(BaseModel):
-    delegator = models.ForeignKey(GroupUser, on_delete=models.CASCADE, related_name='group_user_delegate_delegator')
-    delegate_pool = models.ForeignKey(GroupUserDelegatePool, on_delete=models.CASCADE)
+    delegator = models.ForeignKey(
+        GroupUser, on_delete=models.CASCADE, related_name='group_user_delegate_delegator')
+    delegate_pool = models.ForeignKey(
+        GroupUserDelegatePool, on_delete=models.CASCADE)
     group = models.ForeignKey(Group, on_delete=models.CASCADE)
     tags = models.ManyToManyField(GroupTags)
 

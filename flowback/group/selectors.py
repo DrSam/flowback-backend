@@ -48,17 +48,20 @@ def group_user_permissions(*,
     permissions = permissions or []
 
     if user and group:
-        group_user = get_object(GroupUser, 'User is not in group', group=group, user=user)
+        group_user = get_object(
+            GroupUser, 'User is not in group', group=group, user=user)
 
     elif group_user:
         if type(group_user) == int:
             group_user = get_object(GroupUser, id=group_user)
 
     else:
-        raise Exception('group_user_permissions is missing appropiate parameters')
+        raise Exception(
+            'group_user_permissions is missing appropiate parameters')
 
     perobj = GroupPermissions()
-    user_permissions = model_to_dict(group_user.permission) if group_user.permission else group_default_permissions(group=group_user.group)
+    user_permissions = model_to_dict(
+        group_user.permission) if group_user.permission else group_default_permissions(group=group_user.group)
 
     # Check if admin permission is present
     if 'admin' in permissions:
@@ -70,10 +73,12 @@ def group_user_permissions(*,
         if group_user.group.created_by == group_user.user or group_user.user.is_superuser:
             return group_user
 
-    validated_permissions = any([user_permissions.get(key, False) for key in permissions]) or not permissions
+    validated_permissions = any([user_permissions.get(
+        key, False) for key in permissions]) or not permissions
     if not validated_permissions:
         if raise_exception:
-            raise ValidationError(f'Permission denied, requires one of following permissions: {", ".join(permissions)})')
+            raise ValidationError(f'Permission denied, requires one of following permissions: {
+                                  ", ".join(permissions)})')
         else:
             return False
 
@@ -91,7 +96,8 @@ class BaseGroupFilter(django_filters.FilterSet):
 
 
 class BaseGroupUserFilter(django_filters.FilterSet):
-    username__icontains = django_filters.CharFilter(field_name='user__username', lookup_expr='icontains')
+    username__icontains = django_filters.CharFilter(
+        field_name='user__username', lookup_expr='icontains')
     delegate = django_filters.BooleanFilter(field_name='delegate')
 
     class Meta:
@@ -103,7 +109,8 @@ class BaseGroupUserFilter(django_filters.FilterSet):
 
 
 class BaseGroupUserInviteFilter(django_filters.FilterSet):
-    username__icontains = django_filters.CharFilter(field_name='user__username', lookup_expr='icontains')
+    username__icontains = django_filters.CharFilter(
+        field_name='user__username', lookup_expr='icontains')
 
     class Meta:
         model = GroupUser
@@ -126,17 +133,22 @@ class BaseGroupTagsFilter(django_filters.FilterSet):
 
 class BaseGroupUserDelegatePoolFilter(django_filters.FilterSet):
     id = django_filters.NumberFilter()
-    delegate_id = django_filters.NumberFilter(field_name='groupuserdelegate__id')
-    group_user_id = django_filters.NumberFilter(field_name='groupuserdelegate__group_user_id')
+    delegate_id = django_filters.NumberFilter(
+        field_name='groupuserdelegate__id')
+    group_user_id = django_filters.NumberFilter(
+        field_name='groupuserdelegate__group_user_id')
 
 
 class BaseGroupUserDelegateFilter(django_filters.FilterSet):
     delegate_id = django_filters.NumberFilter()
-    delegate_user_id = django_filters.NumberFilter(field_name='delegate__user_id')
-    delegate_name__icontains = django_filters.CharFilter(field_name='delegate__user__username__icontains')
+    delegate_user_id = django_filters.NumberFilter(
+        field_name='delegate__user_id')
+    delegate_name__icontains = django_filters.CharFilter(
+        field_name='delegate__user__username__icontains')
     tag_id = django_filters.NumberFilter(field_name='tags__tag_id')
     tag_name = django_filters.CharFilter(field_name='tags__tag_name')
-    tag_name__icontains = django_filters.CharFilter(field_name='tags__tag_name', lookup_expr='icontains')
+    tag_name__icontains = django_filters.CharFilter(
+        field_name='tags__tag_name', lookup_expr='icontains')
 
     class Meta:
         model = GroupUserDelegator
@@ -150,7 +162,8 @@ def _group_get_visible_for(user: User):
 
 def group_list(*, fetched_by: User, filters=None):
     filters = filters or {}
-    joined_groups = Group.objects.filter(id=OuterRef('pk'), groupuser__user__in=[fetched_by])
+    joined_groups = Group.objects.filter(
+        id=OuterRef('pk'), groupuser__user__in=[fetched_by])
     qs = _group_get_visible_for(user=fetched_by).annotate(joined=Exists(joined_groups),
                                                           member_count=Count('groupuser')).order_by('created_at').all()
     qs = BaseGroupFilter(filters, qs).qs
@@ -178,7 +191,8 @@ def group_user_list(*, group: int, fetched_by: User, filters=None):
     filters = filters or {}
     is_delegate = GroupUser.objects.filter(group_id=group, groupuserdelegate__group_user=OuterRef('pk'),
                                            groupuserdelegate__group=OuterRef('group'))
-    qs = GroupUser.objects.filter(group_id=group).annotate(delegate=Exists(is_delegate)).all()
+    qs = GroupUser.objects.filter(group_id=group).annotate(
+        delegate=Exists(is_delegate)).all()
     return BaseGroupUserFilter(filters, qs).qs
 
 
@@ -189,14 +203,21 @@ def group_user_delegate_pool_list(*, group: int, fetched_by: User, filters=None)
     return BaseGroupUserDelegatePoolFilter(filters, qs).qs
 
 
-def group_user_invite_list(*, group: int, fetched_by: User, filters=None):
+def group_user_invite_list(*, group: int, fetched_by: User, filters=None, admin_group_id: int):
     if group:
-        group_user_permissions(group=group, user=fetched_by, permissions=['invite_user', 'admin'])
+        group_user_permissions(group=group, user=fetched_by, permissions=[
+                               'invite_user', 'admin'])
         qs = GroupUserInvite.objects.filter(group_id=group).all()
 
+    elif admin_group_id:
+        qs = GroupUserInvite.objects.filter(group_id=admin_group_id).all()
+        qs_reject = GroupUserInvite.objects.filter(status=2).all()
+
+        qs = qs & qs_reject
     else:
         qs = GroupUserInvite.objects.filter(user=fetched_by).all()
-
+        qs_waiting = GroupUserInvite.objects.filter(status=0).all()
+        qs = qs & qs_waiting
     filters = filters or {}
     return BaseGroupUserFilter(filters, qs).qs
 
