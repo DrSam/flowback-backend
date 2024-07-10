@@ -1,4 +1,8 @@
 from rest_framework import serializers, status
+from rest_framework.viewsets import GenericViewSet
+from rest_framework.decorators import action
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 from flowback.common.pagination import LimitOffsetPagination, get_paginated_response
 from rest_framework.response import Response
@@ -170,7 +174,6 @@ class UserViewSet(GenericViewSet):
     queryset = User.objects
     serializer_class = BasicUserSerializer
 
-
     @action(
         detail=False,
         methods=['POST'],
@@ -187,7 +190,6 @@ class UserViewSet(GenericViewSet):
                 },
                 status.HTTP_400_BAD_REQUEST
             )
-
         # Validate new password
         validate_password(request.data.get('new_password'))
 
