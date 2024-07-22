@@ -1,7 +1,15 @@
 from django.urls import path
 
-from .views.group import GroupFolderListApi, GroupListApi, GroupDetailApi, GroupCreateApi, GroupUpdateApi, GroupDeleteApi, GroupMailApi, \
-    GroupNotificationSubscribeApi
+from .views.group import (
+    GroupFolderListApi, 
+    GroupListApi, 
+    GroupDetailApi, 
+    GroupCreateApi, 
+    GroupUpdateApi, 
+    GroupDeleteApi, 
+    GroupMailApi,
+    GroupNotificationSubscribeApi,
+)
 from .views.user import (GroupUserListApi,
                          GroupUserUpdateApi,
                          GroupJoinApi,

@@ -2,12 +2,22 @@ from rest_framework import serializers
 
 from flowback.group.models import Group, GroupUser
 from flowback.user.serializers import BasicUserSerializer
-
+from flowback.chat.models import MessageChannel
 
 class BasicGroupSerializer(serializers.ModelSerializer):
     class Meta:
         model = Group
         fields = ('id', 'name', 'image', 'cover_image', 'hide_poll_users')
+
+
+
+class GroupSerializer(serializers.ModelSerializer):
+    chat = serializers.PrimaryKeyRelatedField(queryset=MessageChannel.objects,required=False)
+
+    class Meta:
+        model = Group
+        fields = "__all__"
+
 
 
 class GroupUserSerializer(serializers.Serializer):
