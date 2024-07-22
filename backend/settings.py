@@ -104,6 +104,7 @@ INSTALLED_APPS = [
     'django_celery_beat',
     'rules',
     'pgtrigger',
+    'rules',
     'flowback.user',
     'flowback.group',
     'flowback.poll',

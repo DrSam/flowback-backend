@@ -9,6 +9,7 @@ from backend.settings import DEBUG, MEDIA_URL, MEDIA_ROOT, URL_SUBPATH, INTEGRAT
 from flowback.poll.views.poll import PollUserScheduleListAPI, PollListApi
 from flowback.user.urls import user_patterns
 from flowback.group.urls import group_patterns
+from flowback.group.api_urls import urlpatterns as group_api_url_patterns
 from flowback.poll.urls import group_poll_patterns, poll_patterns
 from flowback.chat.urls import chat_patterns
 from flowback.notification.urls import notification_patterns
@@ -18,6 +19,7 @@ from django.conf.urls.static import static
 api_urlpatterns = [
     path('', include((user_patterns, 'user'))),
     path('group/', include((group_patterns, 'group'))),
+    path('api/',include((group_api_url_patterns,'group'))),
     path('chat/', include((chat_patterns, 'chat'))),
     path('group/<int:group_id>/poll/', include((group_poll_patterns, 'group_poll'))),
     path('group/poll/', include((poll_patterns, 'poll'))),
