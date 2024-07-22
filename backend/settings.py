@@ -103,6 +103,7 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'django_celery_beat',
     'pgtrigger',
+    'rules',
     'flowback.user',
     'flowback.group',
     'flowback.poll',
@@ -134,6 +135,12 @@ SPECTACULAR_SETTINGS = {
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
 }
+
+
+AUTHENTICATION_BACKENDS = (
+    'rules.permissions.ObjectPermissionBackend',
+    'django.contrib.auth.backends.ModelBackend',
+)
 
 AUTH_USER_MODEL = 'user.User'
 DISABLE_DEFAULT_USER_REGISTRATION = env('DISABLE_DEFAULT_USER_REGISTRATION')
