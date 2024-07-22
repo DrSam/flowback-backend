@@ -1,5 +1,6 @@
 from rest_framework import serializers, status
 from rest_framework.viewsets import GenericViewSet
+from rest_framework.mixins import ListModelMixin
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -7,6 +8,7 @@ from rest_framework.permissions import AllowAny
 from flowback.common.pagination import LimitOffsetPagination, get_paginated_response
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from flowback.user.serializers import BasicUserSerializer
 
 from flowback.user.models import OnboardUser, User
 from flowback.user.selectors import get_user, user_list
@@ -189,4 +191,38 @@ class UserViewSet(GenericViewSet):
         # Save new password
         user.set_password(request.data.get('new_password'))
         user.save()
+        return Response("OK",status.HTTP_200_OK)
+
+
+
+class BlockedUserViewSet(
+    ListModelMixin,
+    GenericViewSet
+):
+    serializer_class = BasicUserSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return self.request.user.blocked_users
+    
+    @action(
+        detail=False,
+        methods=['POST']
+    )
+    def block(self, request, *args, **kwargs):
+        user = request.user
+        to_block_id = request.data.get('user_id')
+        user_to_block = User.objects.get(id=to_block_id)
+        user.blocked_users.add(user_to_block)
+        return Response("OK",status.HTTP_200_OK)
+
+    @action(
+        detail=False,
+        methods=['POST']
+    )
+    def unblock(self, request, *args, **kwargs):
+        user = request.user
+        to_unblock_id = request.data.get('user_id')
+        user_to_unblock = User.objects.get(id=to_unblock_id)
+        user.blocked_users.remove(user_to_unblock)
         return Response("OK",status.HTTP_200_OK)
