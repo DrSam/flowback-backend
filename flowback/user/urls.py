@@ -2,6 +2,7 @@ from django.urls import path
 from rest_framework.authtoken import views
 from rest_framework.routers import SimpleRouter
 from flowback.user.views.user import UserViewSet
+from flowback.user.views.user import BlockedUserViewSet
 
 from backend.settings import DISABLE_DEFAULT_USER_REGISTRATION
 from flowback.user.views.user import (UserCreateApi,
