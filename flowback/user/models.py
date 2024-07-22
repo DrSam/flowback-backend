@@ -13,6 +13,7 @@ from flowback.common.models import BaseModel
 from flowback.kanban.services import kanban_create
 from flowback.schedule.models import Schedule
 from flowback.schedule.services import create_schedule
+from rules.contrib.models import RulesModelBase, RulesModelMixin
 
 
 class CustomUserManager(BaseUserManager):
@@ -84,6 +85,11 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username']
+
+    blocked_users = models.ManyToManyField(
+        'self',
+        related_name='blocked_by'
+    )
 
     objects = CustomUserManager()
 

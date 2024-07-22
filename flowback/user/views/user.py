@@ -1,5 +1,6 @@
 from rest_framework import serializers, status
 from rest_framework.viewsets import GenericViewSet
+from rest_framework.mixins import ListModelMixin
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -7,6 +8,7 @@ from rest_framework.permissions import AllowAny
 from flowback.common.pagination import LimitOffsetPagination, get_paginated_response
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from flowback.user.serializers import BasicUserSerializer
 
 from flowback.user.models import OnboardUser, User
 from flowback.user.selectors import get_user, user_list
