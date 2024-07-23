@@ -1,8 +1,5 @@
 from django.urls import path
 from rest_framework.authtoken import views
-from rest_framework.routers import SimpleRouter
-from flowback.user.views.user import UserViewSet
-from flowback.user.views.user import BlockedUserViewSet
 
 from backend.settings import DISABLE_DEFAULT_USER_REGISTRATION
 from flowback.user.views.user import (UserCreateApi,
@@ -52,8 +49,4 @@ if not DISABLE_DEFAULT_USER_REGISTRATION:
         path('register/verify', UserCreateVerifyApi.as_view(), name='register_verify'),
     ]
 
-router = SimpleRouter()
-router.register('api/user-management', UserViewSet, basename='user-management')
-router.register('api/blocked-users', BlockedUserViewSet, basename='blocked-user')
 
-user_patterns += router.urls
