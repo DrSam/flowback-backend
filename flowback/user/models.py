@@ -70,6 +70,15 @@ class User(AbstractBaseUser, PermissionsMixin):
     schedule = models.ForeignKey(Schedule, on_delete=models.SET_NULL, null=True, blank=True)
     kanban = models.ForeignKey('kanban.Kanban', on_delete=models.SET_NULL, null=True, blank=True)
 
+    # Personal information
+    first_name = models.CharField( max_length=150, blank=False,default='Steve')
+    last_name = models.CharField(max_length=150, blank=True,default='')
+    address = models.TextField(default='',blank=True)
+    country = models.CharField(max_length=150, blank=True, default='')
+    zip = models.CharField(max_length=32, blank=True, default='')
+    birth_date = models.DateField(null=True)
+
+
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username']
 
@@ -107,6 +116,13 @@ class User(AbstractBaseUser, PermissionsMixin):
     def post_delete(cls, instance, **kwargs):
         instance.kanban.delete()
         instance.schedule.delete()
+
+    def get_full_name(self):
+        """
+        Return the first_name plus the last_name, with a space in between.
+        """
+        full_name = "%s %s" % (self.first_name, self.last_name)
+        return full_name.strip()
 
 
 post_save.connect(User.post_save, sender=User)
