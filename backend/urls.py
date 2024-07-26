@@ -17,7 +17,7 @@ from django.conf.urls.static import static
 
 api_urlpatterns = [
     path('', include((user_patterns, 'user'))),
-    path('users/', include('flowback.user.api_urls')),
+    path('user-management/', include('flowback.user.api_urls')),
     path('group/', include((group_patterns, 'group'))),
     path('groups/',include('flowback.group.api_urls')),
     path('chat/', include((chat_patterns, 'chat'))),
