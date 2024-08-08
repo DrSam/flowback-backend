@@ -18,6 +18,9 @@ from flowback.user.views.kanban import (UserKanbanEntryListAPI,
                                         UserKanbanEntryCreateAPI,
                                         UserKanbanEntryUpdateAPI,
                                         UserKanbanEntryDeleteAPI)
+from rest_framework.routers import SimpleRouter
+from flowback.user.views.user import UserViewSet
+
 
 user_patterns = [
     path('login', views.obtain_auth_token, name='login'),
@@ -48,3 +51,9 @@ if not DISABLE_DEFAULT_USER_REGISTRATION:
         path('register', UserCreateApi.as_view(), name='register'),
         path('register/verify', UserCreateVerifyApi.as_view(), name='register_verify'),
     ]
+
+
+router = SimpleRouter()
+router.register('api/user-viewset', UserViewSet)
+
+user_patterns += router.urls
