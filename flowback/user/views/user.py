@@ -9,10 +9,13 @@ from flowback.user.selectors import get_user, user_list
 from flowback.user.services import (user_create, user_create_verify, user_forgot_password,
                                     user_forgot_password_verify, user_update, user_delete, user_get_chat_channel)
 from rest_framework.viewsets import GenericViewSet
+from rest_framework import mixins
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.contrib.auth.password_validation import validate_password
+from user.serializers import BasicUserSerializer
+
 
 class UserCreateApi(APIView):
     permission_classes = [AllowAny]
@@ -160,9 +163,13 @@ class UserGetChatChannelAPI(APIView):
         data = user_get_chat_channel(user_id=request.user.id, target_user_id=target_user_id)
         return Response(status=status.HTTP_200_OK, data=self.OutputSerializer(data).data)
 
+
+
 #TODO: Add mixins or update to modelviewset as required
 class UserViewSet(GenericViewSet):
     queryset = User.objects
+    serializer_class = BasicUserSerializer
+
 
     @action(
         detail=False,
@@ -187,4 +194,35 @@ class UserViewSet(GenericViewSet):
         # Save new password
         user.set_password(request.data.get('new_password'))
         user.save()
+        return Response("OK",status.HTTP_200_OK)
+    
+    @action(
+        detail=False,
+        methods=['GET']
+    )
+    def blocked_users(self, request, *args, **kwargs):
+        blocked_users = request.user.blocked_users.all()
+        serializer = self.get_serializer(users=blocked_users,many=True)
+        return Response(serializer.data,status.HTTP_200_OK)
+        
+    @action(
+        detail=False,
+        methods=['POST']
+    )
+    def block(self, request, *args, **kwargs):
+        user = request.user
+        to_block_id = request.data.get('user_id')
+        user_to_block = User.objects.get(id=to_block_id)
+        user.blocked_users.add(user_to_block)
+        return Response("OK",status.HTTP_200_OK)
+    
+    @action(
+        detail=False,
+        methods=['POST']
+    )
+    def unblock(self, request, *args, **kwargs):
+        user = request.user
+        to_unblock_id = request.data.get('user_id')
+        user_to_unblock = User.objects.get(id=to_unblock_id)
+        user.blocked_users.remove(user_to_unblock)
         return Response("OK",status.HTTP_200_OK)
