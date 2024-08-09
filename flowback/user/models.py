@@ -69,6 +69,11 @@ class User(AbstractBaseUser, PermissionsMixin):
     schedule = models.ForeignKey(Schedule, on_delete=models.SET_NULL, null=True, blank=True)
     kanban = models.ForeignKey('kanban.Kanban', on_delete=models.SET_NULL, null=True, blank=True)
 
+    blocked_users = models.ManyToManyField(
+        'self',
+        related_name='blocked_by'
+    )
+
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username']
 

@@ -54,6 +54,5 @@ if not DISABLE_DEFAULT_USER_REGISTRATION:
 
 
 router = SimpleRouter()
-router.register('api/user-management', UserViewSet)
-
+router.register(r'user-management', UserViewSet)
 user_patterns += router.urls
