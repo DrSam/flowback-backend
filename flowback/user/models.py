@@ -69,6 +69,14 @@ class User(AbstractBaseUser, PermissionsMixin):
     schedule = models.ForeignKey(Schedule, on_delete=models.SET_NULL, null=True, blank=True)
     kanban = models.ForeignKey('kanban.Kanban', on_delete=models.SET_NULL, null=True, blank=True)
 
+    # Personal information
+    first_name = models.CharField( max_length=150, blank=False,default='Steve')
+    last_name = models.CharField(max_length=150, blank=True,default='')
+    address = models.TextField(default='',blank=True)
+    country = models.CharField(max_length=150, blank=True, default='')
+    zip = models.CharField(max_length=32, blank=True, default='')
+    birth_date = models.DateField(null=True)
+
     blocked_users = models.ManyToManyField(
         'self',
         related_name='blocked_by'
