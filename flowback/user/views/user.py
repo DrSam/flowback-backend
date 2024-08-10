@@ -14,7 +14,7 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.contrib.auth.password_validation import validate_password
-from user.serializers import BasicUserSerializer
+from flowback.user.serializers import BasicUserSerializer
 
 
 class UserCreateApi(APIView):
