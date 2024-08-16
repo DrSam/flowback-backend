@@ -6,9 +6,14 @@ from flowback.common.pagination import LimitOffsetPagination, get_paginated_resp
 from flowback.group.models import GroupUser
 from flowback.group.selectors import group_user_list, group_user_invite_list
 from flowback.group.serializers import GroupUserSerializer
+from flowback.group.serializers import GroupUserModelSerializer
+from flowback.group.models import Group
 
 from flowback.group.services import group_join, group_user_update, group_leave, group_invite, group_invite_accept, \
     group_invite_reject
+from rest_framework.viewsets import ModelViewSet
+import django_filters
+from flowback.group.filters import GroupUserFilter
 
 
 class GroupUserListApi(APIView):
@@ -153,3 +158,30 @@ class GroupInviteRejectApi(APIView):
         group_invite_reject(fetched_by=request.user.id, group=group, **serializer.validated_data)
 
         return Response(status=status.HTTP_200_OK)
+
+
+
+class GroupUserViewSet(
+    ModelViewSet
+):
+    _group = None
+
+    serializer_class = GroupUserModelSerializer
+    filter_backends = [django_filters.rest_framework.DjangoFilterBackend]
+    filterset_class = GroupUserFilter
+
+    def get_queryset(self):
+        return GroupUser.objects.filter(
+            active=True,
+            group=self.get_group()
+            
+        )
+    
+    def get_group(self):
+        if self._group:
+            return self._group
+        
+        group_id = self.kwargs.get('group_id')
+        group = Group.objects.get(id=group_id)
+        self._group = group
+        return self._group

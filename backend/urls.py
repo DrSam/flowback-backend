@@ -19,7 +19,7 @@ api_urlpatterns = [
     path('', include((user_patterns, 'user'))),
     path('user-management/', include('flowback.user.api_urls')),
     path('group/', include((group_patterns, 'group'))),
-    path('groups/',include('flowback.group.api_urls')),
+    path('group-management/',include('flowback.group.api_urls')),
     path('chat/', include((chat_patterns, 'chat'))),
     path('group/<int:group_id>/poll/', include((group_poll_patterns, 'group_poll'))),
     path('group/poll/', include((poll_patterns, 'poll'))),
