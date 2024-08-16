@@ -29,8 +29,6 @@ class CustomUserManager(BaseUserManager):
         user.full_clean()
         user.save()
 
-        Token.objects.create(user=user)
-
         return user
 
     def create_superuser(self, *, username, email, password):
@@ -45,9 +43,7 @@ class CustomUserManager(BaseUserManager):
         user.set_password(password)
         user.full_clean()
         user.save(using=self._db)
-
-        Token.objects.create(user=user)
-
+        
         return user
 
 

@@ -9,6 +9,7 @@ from flowback.common.pagination import LimitOffsetPagination, get_paginated_resp
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from flowback.user.serializers import BasicUserSerializer
+from flowback.user.serializers import OnBoardUserCreateSerializer
 
 from flowback.user.models import OnboardUser, User
 from flowback.user.selectors import get_user, user_list
@@ -21,21 +22,25 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.contrib.auth.password_validation import validate_password
 from flowback.user.serializers import BasicUserSerializer
+from backend.settings import DEFAULT_FROM_EMAIL, FLOWBACK_URL
+from django.core.mail import send_mail
 
 
 class UserCreateApi(APIView):
     permission_classes = [AllowAny]
 
-    class InputSerializer(serializers.ModelSerializer):
-        class Meta:
-            model = OnboardUser
-            fields = 'username', 'email'
-
     def post(self, request):
-        serializer = self.InputSerializer(data=request.data)
+        serializer = OnBoardUserCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        user = serializer.save()
 
-        user_create(**serializer.validated_data)
+        link = f'Use this code to create your account: {user.verification_code}'
+        if FLOWBACK_URL:
+            link = f'''Use this link to create your account: {FLOWBACK_URL}/create_account/
+                    ?email={user.email}&verification_code={user.verification_code}'''
+
+        send_mail('Flowback Verification Code', link, DEFAULT_FROM_EMAIL, [user.email])
+
 
         return Response(status=status.HTTP_200_OK)
 
@@ -175,11 +180,12 @@ class UserGetChatChannelAPI(APIView):
 class UserViewSet(GenericViewSet):
     queryset = User.objects
     serializer_class = BasicUserSerializer
+    permission_classes = [IsAuthenticated]
+
 
     @action(
         detail=False,
         methods=['POST'],
-        permission_classes=[IsAuthenticated]
     )
     def change_password(self, request, *args, **kwargs):
         user = request.user

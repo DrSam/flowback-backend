@@ -14,6 +14,7 @@ import sys
 
 import environ
 from pathlib import Path
+from datetime import timedelta
 
 
 env = environ.Env(DEBUG=(bool, False),
@@ -102,7 +103,6 @@ INSTALLED_APPS = [
     'django_extensions',
     'rest_framework.authtoken',
     'django_celery_beat',
-    'rules',
     'pgtrigger',
     'rules',
     'flowback.user',
@@ -122,7 +122,7 @@ CELERY_BROKER_URL = env('RABBITMQ_BROKER_URL')
 REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'flowback.common.documentation.CustomAutoSchema',
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.TokenAuthentication'
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': (
         env('FLOWBACK_DEFAULT_PERMISSION'),
@@ -338,3 +338,10 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/4.0/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+SIMPLE_JWT = {
+    'USER_ID_FIELD':'email',
+    "ACCESS_TOKEN_LIFETIME": timedelta(days=1),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=30),
+}

@@ -56,10 +56,9 @@ def user_create_verify(*, verification_code: str, password: str):
         raise ValidationError('Verification code has already been used.')
 
     validate_password(password)
-
-    model_update(instance=onboard_user,
-                 fields=['is_verified'],
-                 data=dict(is_verified=True))
+    
+    onboard_user.is_verified=True
+    onboard_user.save()
 
     return User.objects.create_user(username=onboard_user.username,
                                     email=onboard_user.email,

@@ -5,7 +5,7 @@ from drf_spectacular.views import SpectacularRedocView, SpectacularAPIView
 from rest_framework import permissions
 from rest_framework.schemas import get_schema_view
 
-from backend.settings import DEBUG, MEDIA_URL, MEDIA_ROOT, URL_SUBPATH, INTEGRATIONS
+from backend.settings import DEBUG, MEDIA_URL, MEDIA_ROOT, URL_SUBPATH, INTEGRATIONS, STATIC_ROOT, STATIC_URL
 from flowback.poll.views.poll import PollUserScheduleListAPI, PollListApi
 from flowback.user.urls import user_patterns
 from flowback.group.urls import group_patterns
@@ -13,7 +13,11 @@ from flowback.poll.urls import group_poll_patterns, poll_patterns
 from flowback.chat.urls import chat_patterns
 from flowback.notification.urls import notification_patterns
 from django.conf.urls.static import static
-
+from rest_framework_simplejwt.views import (
+    TokenObtainPairView,
+    TokenRefreshView,
+    TokenVerifyView
+)
 
 api_urlpatterns = [
     path('', include((user_patterns, 'user'))),
@@ -29,6 +33,9 @@ api_urlpatterns = [
     path('poll/user/schedule', PollUserScheduleListAPI.as_view(), name='poll_user_schedule'),
     path('schema/', SpectacularAPIView.as_view(), name='schema'),
     path('schema/redoc/', SpectacularRedocView.as_view(url_name='api:schema'), name='redoc'),
+    path('auth/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('auth/token/verify/', TokenVerifyView.as_view(), name='token_verify'),
 ]
 
 if INTEGRATIONS:
@@ -50,3 +57,5 @@ urlpatterns = [
 if DEBUG:
     urlpatterns += static((f'/{URL_SUBPATH}' if URL_SUBPATH else '') + MEDIA_URL,
                           document_root=MEDIA_ROOT)
+    urlpatterns += static((f'/{URL_SUBPATH}' if URL_SUBPATH else '') + STATIC_URL,
+                          document_root=STATIC_ROOT)
