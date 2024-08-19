@@ -64,8 +64,8 @@ class User(AbstractBaseUser, PermissionsMixin):
     dark_theme = models.BooleanField(default=False)
     configuration = models.TextField(blank=True, null=True)
 
-    bio = models.TextField(null=True, blank=True)
-    website = models.TextField(null=True, blank=True)
+    bio = models.TextField(blank=True,default='')
+    website = models.TextField(blank=True,default='')
 
     schedule = models.ForeignKey(Schedule, on_delete=models.SET_NULL, null=True, blank=True)
     kanban = models.ForeignKey('kanban.Kanban', on_delete=models.SET_NULL, null=True, blank=True)
@@ -76,7 +76,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     address = models.TextField(default='',blank=True)
     country = models.CharField(max_length=150, blank=True, default='')
     zip = models.CharField(max_length=32, blank=True, default='')
-    birth_date = models.DateField(null=True)
+    birth_date = models.DateField(null=True,blank=True)
 
     blocked_users = models.ManyToManyField(
         'self',

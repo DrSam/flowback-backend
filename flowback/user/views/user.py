@@ -89,7 +89,7 @@ class UserForgotPasswordVerifyApi(APIView):
 
 class UserListApi(APIView):
     class Pagination(LimitOffsetPagination):
-        default_limit = 1
+        default_limit = 10
         max_limit = 1000
 
     class FilterSerializer(serializers.Serializer):
