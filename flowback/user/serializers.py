@@ -7,7 +7,7 @@ from rest_framework.exceptions import ValidationError
 class BasicUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ('id', 'username', 'profile_image', 'banner_image')
+        fields = ('id','first_name','last_name', 'username', 'profile_image', 'banner_image')
 
 
 class OnBoardUserCreateSerializer(serializers.ModelSerializer):
@@ -22,3 +22,10 @@ class OnBoardUserCreateSerializer(serializers.ModelSerializer):
             raise ValidationError('Email already exists')
         
         return super().create(validated_data)
+        
+
+
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        exclude = ['password']

@@ -21,6 +21,7 @@ from flowback.schedule.services import create_schedule
 from flowback.user.models import User
 from django.db import models
 from flowback.group.rules import is_group_admin, is_group_user
+from flowback.group.fields import GroupUserInviteStatusChoices
 
 # Create your models here.
 class GroupFolder(BaseModel):
@@ -171,6 +172,7 @@ class GroupUser(BaseModel):
     chat_participant = models.ForeignKey(MessageChannelParticipant, on_delete=models.PROTECT)
     active = models.BooleanField(default=True)
 
+
     # Check if every permission in a dict is matched correctly
     def check_permission(self, raise_exception: bool = False, **permissions):
         if self.permission:
@@ -241,9 +243,10 @@ class GroupUserInvite(BaseModel):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     group = models.ForeignKey(Group, on_delete=models.CASCADE)
     external = models.BooleanField()
-
-    class Meta:
-        unique_together = ('user', 'group')
+    status = models.CharField(
+        choices=GroupUserInviteStatusChoices.choices,
+        default=GroupUserInviteStatusChoices.PENDING
+    )
 
 
 # A pool containing multiple delegates

@@ -2,17 +2,10 @@ from rest_framework import serializers, status
 from flowback.common.pagination import LimitOffsetPagination, get_paginated_response
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework import viewsets
-from rest_framework import mixins
-from rest_framework.permissions import BasePermission
-from flowback.group.models import Group, GroupFolder
+from flowback.group.models import Group
 from flowback.group.selectors import group_list, group_detail, group_folder_list
 from flowback.group.services import group_delete, group_update, group_create, group_mail, group_notification, \
     group_notification_subscribe
-from flowback.group.serializers import GroupSerializer
-from flowback.group.filters import GroupFilter
-import django_filters
-from rules.contrib.rest_framework import AutoPermissionViewSetMixin
 
 
 class GroupListApi(APIView):
@@ -183,20 +176,3 @@ class GroupMailApi(APIView):
 
         return Response(status=status.HTTP_200_OK)
 
-
-class GroupViewSet(
-    AutoPermissionViewSetMixin,
-    mixins.UpdateModelMixin,
-    mixins.RetrieveModelMixin,
-    viewsets.GenericViewSet
-):
-    queryset = Group.objects.all()
-    serializer_class = GroupSerializer
-    filter_backends = [django_filters.rest_framework.DjangoFilterBackend]
-    filterset_class = GroupFilter
-
-    permission_type_map = {
-        "partial_update": "change",
-        "retrieve":"view"
-    }
-    

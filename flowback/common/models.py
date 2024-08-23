@@ -4,7 +4,7 @@ from django.utils import timezone
 from pgtrigger import Q
 from rules.contrib.models import RulesModel
 
-class BaseModel(RulesModel):
+class BaseModel(models.Model):
     created_at = models.DateTimeField(db_index=True, default=timezone.now)
     updated_at = models.DateTimeField(auto_now=True)
 
