@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from flowback.group.models import Group, GroupUser
+from flowback.group.models import Group, GroupUser, GroupUserInvite
 from flowback.user.serializers import BasicUserSerializer
 from flowback.chat.models import MessageChannel
 
@@ -49,4 +49,13 @@ class GroupUserModelSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = GroupUser
+        fields = "__all__"
+
+
+class GroupUserInviteSerializer(serializers.ModelSerializer):
+    user = BasicUserSerializer(read_only=True)
+    group = BasicGroupSerializer(read_only=True)
+
+    class Meta:
+        model = GroupUserInvite
         fields = "__all__"

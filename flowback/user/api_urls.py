@@ -1,10 +1,8 @@
 from rest_framework.routers import SimpleRouter
-from flowback.user.views.user import UserViewSet
-from flowback.user.views.user import BlockedUserViewSet
+from flowback.user.viewsets.user import UserViewSet
 
 
 router = SimpleRouter()
-router.register('user-management', UserViewSet, basename='user-management')
-router.register('blocked-users', BlockedUserViewSet, basename='blocked-user')
+router.register('user', UserViewSet, basename='user-management')
 
 urlpatterns = router.urls

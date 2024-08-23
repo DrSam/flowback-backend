@@ -102,7 +102,6 @@ INSTALLED_APPS = [
     'django_extensions',
     'rest_framework.authtoken',
     'django_celery_beat',
-    'rules',
     'pgtrigger',
     'rules',
     'flowback.user',

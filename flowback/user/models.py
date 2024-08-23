@@ -86,11 +86,6 @@ class User(AbstractBaseUser, PermissionsMixin):
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username']
 
-    blocked_users = models.ManyToManyField(
-        'self',
-        related_name='blocked_by'
-    )
-
     objects = CustomUserManager()
 
     @property
