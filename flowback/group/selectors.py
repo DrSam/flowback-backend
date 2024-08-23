@@ -39,7 +39,7 @@ def group_default_permissions(*, group: Union[Group, int]):
 def group_user_permissions(*,
                            user: Union[User, int] = None,
                            group: Union[Group, int] = None,
-                           group_user: [GroupUser, int] = None,
+                           group_user: Union[GroupUser, int] = None,
                            permissions: Union[list[str], str] = None,
                            raise_exception: bool = True) -> Union[GroupUser, bool]:
     if isinstance(user, int):
