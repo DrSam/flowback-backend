@@ -7,6 +7,9 @@ from flowback.group.models import GroupUser
 from flowback.group.selectors import group_user_list, group_user_invite_list
 from flowback.group.services import group_join, group_user_update, group_leave, group_invite, group_invite_accept, \
     group_invite_reject
+from rest_framework.viewsets import ModelViewSet
+import django_filters
+from flowback.group.filters import GroupUserFilter
 
 
 class GroupUserListApi(APIView):
