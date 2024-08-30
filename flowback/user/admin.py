@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from flowback.user.models import User
+from flowback.user.models import OnboardUser
 
 
 @admin.register(User)
@@ -12,7 +13,9 @@ class UserAdmin(BaseUserAdmin):
         ('Personal Info', {'fields': ('profile_image', 'banner_image', 'bio', 'website')}),
         ('Permissions', {'fields': ('is_staff',)}),
         ('Activity', {'fields': ('last_login',)}),
-        ('Notifications', {'fields': ('email_notifications',)})
+        ('Notifications', {'fields': ('email_notifications',)}),
+        ('Blocked Users',{'fields':('blocked_users',)}),
+        ('Language',{'fields':('language',)})
     )
 
     add_fieldsets = (
