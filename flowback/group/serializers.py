@@ -59,3 +59,9 @@ class GroupUserInviteSerializer(serializers.ModelSerializer):
     class Meta:
         model = GroupUserInvite
         fields = "__all__"
+
+
+class MyGroupWithUserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Group
+        fields = "__all__"

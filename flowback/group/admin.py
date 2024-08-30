@@ -1,6 +1,8 @@
 from django.contrib import admin
 from .models import Group, GroupPermissions, GroupTags, GroupUser, GroupUserInvite, GroupUserDelegatePool, GroupUserDelegate, GroupUserDelegator, GroupFolder
 
+
+
 @admin.register(GroupFolder)
 class GroupFolderAdmin(admin.ModelAdmin):
     list_display = ('name',)

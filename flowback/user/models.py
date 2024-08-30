@@ -73,6 +73,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     country = models.CharField(max_length=150, blank=True, default='')
     zip = models.CharField(max_length=32, blank=True, default='')
     birth_date = models.DateField(null=True,blank=True)
+    language = models.CharField(max_length=8, default='',blank=True)
 
     blocked_users = models.ManyToManyField(
         'self',
@@ -134,6 +135,7 @@ class OnboardUser(BaseModel):
     username = models.CharField(max_length=120, validators=[UnicodeUsernameValidator()])
     verification_code = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     is_verified = models.BooleanField(default=False)
+
 
 
 class PasswordReset(BaseModel):

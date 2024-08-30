@@ -65,10 +65,7 @@ class Group(BaseModel):
     class Meta:
         constraints = [models.CheckConstraint(check=~Q(Q(public=False) & Q(direct_join=True)),
                                               name='group_not_public_and_direct_join_check')]
-        rules_permissions = {
-            'change':is_group_admin,
-            'retrieve':is_group_user
-        }
+    
 
     @classmethod
     def pre_save(cls, instance, raw, using, update_fields, *args, **kwargs):

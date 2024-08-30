@@ -7,6 +7,7 @@ from rest_framework import mixins
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from flowback.group.serializers import GroupSerializer
+from flowback.group.serializers import MyGroupWithUserSerializer
 import django_filters
 from flowback.group.filters import GroupFilter
 from rest_framework.permissions import BasePermission
@@ -35,6 +36,8 @@ class GroupViewSet(
     def get_serializer_class(self):
         if self.action == 'invites':
             return GroupUserInviteSerializer
+        elif self.action == 'my_groups':
+            return MyGroupWithUserSerializer
         return super().get_serializer_class()
     
     @action(
@@ -47,4 +50,16 @@ class GroupViewSet(
             user=request.user
         )
         serializer = self.get_serializer(user_invites,many=True)
+        return Response(serializer.data,status.HTTP_200_OK)
+
+    @action(
+        detail=False,
+        methods=['GET'],
+        url_path='my'
+    )
+    def my_groups(self, request, *args, **kwargs):
+        groups = Group.objects.filter(
+            groupuser__user=request.user
+        )
+        serializer = self.get_serializer(instance=groups,many=True)
         return Response(serializer.data,status.HTTP_200_OK)
