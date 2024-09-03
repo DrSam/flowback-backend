@@ -7,6 +7,7 @@ from rest_framework import mixins
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from flowback.group.serializers import GroupSerializer
+from flowback.group.serializers import GroupCreateSerializer
 from flowback.group.serializers import MyGroupWithUserSerializer
 import django_filters
 from flowback.group.filters import GroupFilter
@@ -15,6 +16,9 @@ from flowback.group.models import GroupUserInvite
 from flowback.group.fields import GroupUserInviteStatusChoices
 from flowback.group.serializers import GroupUserInviteSerializer
 import rules.predicates
+from flowback.chat.models import MessageChannel
+from flowback.chat.models import MessageChannelParticipant
+
 
 class GroupViewSetPermission(BasePermission):
     def has_permission(self, request, view):
@@ -38,8 +42,37 @@ class GroupViewSet(
             return GroupUserInviteSerializer
         elif self.action == 'my_groups':
             return MyGroupWithUserSerializer
+        elif self.action == 'create':
+            return GroupCreateSerializer
         return super().get_serializer_class()
     
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors,status.HTTP_400_BAD_REQUEST)
+        
+        group = serializer.save(created_by=request.user)
+
+        GroupUser.objects.create(
+            group=group,
+            user=request.user,
+            is_admin=True
+        )
+
+        message_channel = MessageChannel.objects.create(
+            origin_name = 'group',
+            title = group.name
+        )
+        group.chat = message_channel
+        group.save()
+
+        MessageChannelParticipant.objects.create(
+            channel=message_channel,
+            user=request.user
+        )
+
+        return Response("OK",status.HTTP_201_CREATED)
+
     @action(
         detail=False,
         methods=['GET']
