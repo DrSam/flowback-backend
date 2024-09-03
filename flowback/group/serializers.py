@@ -10,6 +10,11 @@ class BasicGroupSerializer(serializers.ModelSerializer):
         fields = ('id', 'name', 'image', 'cover_image', 'hide_poll_users')
 
 
+class GroupCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Group
+        fields = ['name','description','public','direct_join']
+    
 
 class GroupSerializer(serializers.ModelSerializer):
     chat = serializers.PrimaryKeyRelatedField(queryset=MessageChannel.objects,required=False)
@@ -17,7 +22,6 @@ class GroupSerializer(serializers.ModelSerializer):
     class Meta:
         model = Group
         fields = "__all__"
-
 
 
 class GroupUserSerializer(serializers.Serializer):
@@ -31,7 +35,6 @@ class GroupUserSerializer(serializers.Serializer):
     group_id = serializers.IntegerField(required=False)
     group_name = serializers.CharField(required=False, source='group.name')
     group_image = serializers.CharField(required=False, source='group.image')
-
 
 
 class GroupUserModelSerializer(serializers.ModelSerializer):
