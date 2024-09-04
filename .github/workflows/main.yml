@@ -1,0 +1,40 @@
+name: Deploy to DigitalOcean Droplet
+
+on:
+  push:
+    branches:
+      - testing-server
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.DIGITALOCEAN_SSH_KEY }}
+
+      - name: Add DigitalOcean droplet to known hosts
+        run: |
+          ssh-keyscan -H 104.248.80.243 >> ~/.ssh/known_hosts
+
+      - name: Deploy to Droplet
+        run: |
+          ssh root@104.248.80.243 << 'EOF'
+           cd /root/forby/backend/flowback-backend
+           eval "$(ssh-agent -s)"
+           ssh-add /root/.ssh/forby_frontend_rsa
+           git pull origin testing-server
+           source venv/bin/activate
+           python -m pip install -r requirements.txt
+           python manage.py migrate
+          EOF
