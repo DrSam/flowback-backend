@@ -34,6 +34,7 @@ jobs:
            eval "$(ssh-agent -s)"
            ssh-add /root/.ssh/forby_frontend_rsa
            git pull origin testing-server
+           EXPORT PGPASSFILE=/root/forby/backend/flowback-backend/.flowback_pgpass
            source venv/bin/activate
            python -m pip install -r requirements.txt
            python manage.py migrate
