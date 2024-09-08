@@ -45,7 +45,7 @@ class UserViewSet(
     permission_classes = [UserViewSetPermission]
 
     def get_serializer_class(self):
-        if self.action == 'profile':
+        if self.action in ['profile','update_profile']:
             return UserProfileSerializer
         if self.action == 'register':
             return UserRegisterSerializer
@@ -220,16 +220,24 @@ class UserViewSet(
         serializer = self.get_serializer(instance=user)
         return Response(serializer.data,status.HTTP_200_OK)
     
+    
     @profile.mapping.patch
     def update_profile(self, request, *args, **kwargs):
         user = User.objects.filter(username=kwargs.get('username')).first()
         if user!=request.user:
             return Response("Not allowed",status.HTTP_401_UNAUTHORIZED)
-        serializer = self.get_serializer(instance=user,data=request.data,partial=True)
+        
+        if 'profile_image' in request.FILES or 'banner_image' in request.FILES:
+            serializer = self.get_serializer(instance=user,data=request.data,partial=True)
+        else:
+            data = request.data.copy()
+            data.pop('profile_image')
+            data.pop('banner_image')
+            serializer = self.get_serializer(instance=user,data=data,partial=True)
         if serializer.is_valid():
             serializer.save()
             serializer = self.get_serializer(instance=user)
             return Response(serializer.data,status.HTTP_200_OK)
-        return Response(serializer.errrors,status.HTTP_400_BAD_REQUEST)
+        return Response(serializer.errors,status.HTTP_400_BAD_REQUEST)
 
 
