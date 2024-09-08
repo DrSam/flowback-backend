@@ -111,3 +111,9 @@ class UserPasswordForgotVerifySerializer(serializers.Serializer):
         ).exists():
             raise ValidationError('Verification code already used')
         return value
+
+
+class UserProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['username','email','first_name','last_name','address','country','zip','birth_date','profile_image','banner_image','bio','website']

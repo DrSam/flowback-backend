@@ -10,6 +10,7 @@ from flowback.user.serializers import UserRegisterSerializer
 from flowback.user.serializers import UserVerifySerializer
 from flowback.user.serializers import UserForgotPasswordSerializer
 from flowback.user.serializers import UserPasswordForgotVerifySerializer
+from flowback.user.serializers import UserProfileSerializer
 from flowback.user.models import  User
 from flowback.user.models import  PasswordReset
 from django.contrib.auth.password_validation import validate_password
@@ -44,6 +45,8 @@ class UserViewSet(
     permission_classes = [UserViewSetPermission]
 
     def get_serializer_class(self):
+        if self.action in ['profile','update_profile']:
+            return UserProfileSerializer
         if self.action == 'register':
             return UserRegisterSerializer
         elif self.action == 'register_verify':
@@ -204,3 +207,37 @@ class UserViewSet(
         user.save()
         return Response("OK",status.HTTP_200_OK)
         
+
+    @action(
+        detail=False,
+        methods=['GET'],
+        url_path='(?P<username>[^/.]+)/profile'
+    )
+    def profile(self, request, *args, **kwargs):
+        user = User.objects.filter(username=kwargs.get('username')).first()
+        if not user:
+            return Response("User not found",status.HTTP_400_BAD_REQUEST)
+        serializer = self.get_serializer(instance=user)
+        return Response(serializer.data,status.HTTP_200_OK)
+    
+    
+    @profile.mapping.patch
+    def update_profile(self, request, *args, **kwargs):
+        user = User.objects.filter(username=kwargs.get('username')).first()
+        if user!=request.user:
+            return Response("Not allowed",status.HTTP_401_UNAUTHORIZED)
+        
+        if 'profile_image' in request.FILES or 'banner_image' in request.FILES:
+            serializer = self.get_serializer(instance=user,data=request.data,partial=True)
+        else:
+            data = request.data.copy()
+            data.pop('profile_image')
+            data.pop('banner_image')
+            serializer = self.get_serializer(instance=user,data=data,partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            serializer = self.get_serializer(instance=user)
+            return Response(serializer.data,status.HTTP_200_OK)
+        return Response(serializer.errors,status.HTTP_400_BAD_REQUEST)
+
+
