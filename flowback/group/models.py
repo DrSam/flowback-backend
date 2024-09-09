@@ -53,7 +53,9 @@ class Group(BaseModel):
     image = models.ImageField(upload_to='group/image', null=True, blank=True)
     cover_image = models.ImageField(upload_to='group/cover_image', null=True, blank=True)
     hide_poll_users = models.BooleanField(default=False)  # Hides users in polls, TODO remove bool from views
-    default_quorum = models.IntegerField(default=0, validators=[MinValueValidator(0), MaxValueValidator(100)])
+    default_quorum = models.IntegerField(default=50, validators=[MinValueValidator(1), MaxValueValidator(100)])
+    default_approval_minimum = models.PositiveIntegerField(default=51, validators=[MinValueValidator(1), MaxValueValidator(100)])
+    default_finalization_period = models.PositiveIntegerField(default=3,validators=[MinValueValidator(1), MaxValueValidator(30)],)
     schedule = models.ForeignKey(Schedule, null=True, blank=True, on_delete=models.PROTECT)
     kanban = models.ForeignKey(Kanban, null=True, blank=True, on_delete=models.PROTECT)
     chat = models.ForeignKey(MessageChannel, on_delete=models.PROTECT)
