@@ -21,13 +21,13 @@ from django.core.mail import send_mail
 from rest_framework.permissions import BasePermission
 import rules
 from django.contrib.auth.password_validation import validate_password
-from flowback.user.fields import LanguageOptions
+
 
 class UserViewSetPermission(BasePermission):
     def has_permission(self, request, view):
         if view.action in ['register','register_verify','forgot','forgot_verify']:
             return True
-        return rules.predicates.is_authenticated(request.user)
+        return rules.predicates.is_authenticated.test(request.user)
 
     def has_object_permission(self, request, view, obj):
         return super().has_object_permission(request,view, obj)

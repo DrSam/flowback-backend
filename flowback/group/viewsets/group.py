@@ -18,6 +18,7 @@ from flowback.group.serializers import GroupUserInviteSerializer
 import rules.predicates
 from flowback.chat.models import MessageChannel
 from flowback.chat.models import MessageChannelParticipant
+from flowback.group import rules as group_rules
 
 
 class GroupViewSetPermission(BasePermission):
@@ -25,7 +26,9 @@ class GroupViewSetPermission(BasePermission):
         return rules.predicates.is_authenticated(request.user)
 
     def has_object_permission(self, request, view, obj):
-        return super().has_object_permission(request,view, obj)
+        if view.action == 'can_update':
+            return group_rules.is_admin.test(request.user,obj)
+        return super().has_object_permission(request,view,obj)
 
 
 class GroupViewSet(
@@ -72,6 +75,15 @@ class GroupViewSet(
         )
 
         return Response("OK",status.HTTP_201_CREATED)
+
+    @action(
+        detail=True,
+        methods=['GET'],
+        url_path='can-update'
+    )
+    def can_update(self, request, *args, **kwargs):
+        object = self.get_object()
+        return Response("OK",status.HTTP_200_OK)
 
     @action(
         detail=False,

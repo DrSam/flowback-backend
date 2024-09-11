@@ -5,18 +5,17 @@ from django.db.models.fields import BooleanField
 is_superuser = rules.predicates.is_superuser
 
 # Our group predicates
-@rules.predicate
-def is_admin(user,group):
+@rules.predicate(bind=True)
+def is_admin(self, user,group):
     from flowback.group.models import GroupUser
-
-    group_user = is_admin.context.get('user_group')
+    group_user = self.context.get('user_group')
     if not group_user:
         group_user = GroupUser.objects.get(
             user=user,
             group=group
         )
     
-    is_admin.context['group_user'] = group_user
+    self.context['group_user'] = group_user
     
     return group_user.is_admin
 

@@ -20,7 +20,6 @@ from flowback.schedule.models import Schedule
 from flowback.schedule.services import create_schedule
 from flowback.user.models import User
 from django.db import models
-from flowback.group.rules import is_group_admin, is_group_user
 from flowback.group.fields import GroupUserInviteStatusChoices
 
 # Create your models here.
