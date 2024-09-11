@@ -13,7 +13,7 @@ class BasicGroupSerializer(serializers.ModelSerializer):
 class GroupCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Group
-        fields = ['name','description','public','direct_join']
+        fields = ['name','description','public','direct_join','default_quorum','default_approval_minimum','default_finalization_period']
     
 
 class GroupSerializer(serializers.ModelSerializer):
