@@ -19,6 +19,7 @@ import rules.predicates
 from flowback.chat.models import MessageChannel
 from flowback.chat.models import MessageChannelParticipant
 from flowback.group import rules as group_rules
+from django.db.models import Q
 
 
 class GroupViewSetPermission(BasePermission):
@@ -49,6 +50,15 @@ class GroupViewSet(
             return GroupCreateSerializer
         return super().get_serializer_class()
     
+    def get_queryset(self):
+        if self.action == 'list':
+            return Group.objects.filter(
+                public=True
+            ).exclude(
+                groupuser__user=self.request.user
+            ).distinct()
+        return super().get_queryset()
+
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         if not serializer.is_valid():
@@ -103,8 +113,18 @@ class GroupViewSet(
         url_path='my'
     )
     def my_groups(self, request, *args, **kwargs):
-        groups = Group.objects.filter(
-            groupuser__user=request.user
-        )
-        serializer = self.get_serializer(instance=groups,many=True)
+        queryset = self.filter_queryset(self.get_queryset())
+        
+        if request.GET.get('is_admin'):
+            queryset = queryset.filter(
+                groupuser__user=request.user,
+                groupuser__is_admin=True
+            )
+        else:
+            queryset = queryset.filter(
+                groupuser__user=request.user
+            )
+        
+        serializer = self.get_serializer(instance=queryset,many=True)
         return Response(serializer.data,status.HTTP_200_OK)
+    
