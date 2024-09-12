@@ -4,10 +4,10 @@ from flowback.group.models import GroupUser
 
 
 class GroupFilter(django_filters.FilterSet):
-    name__icontains = django_filters.CharFilter(lookup_expr='icontains')
+    name = django_filters.CharFilter(lookup_expr='icontains')
     class Meta:
         model = Group
-        fields = ['name','name__icontains','chat','direct_join','group_folder']
+        fields = ['name','chat','direct_join','group_folder']
 
 
 
