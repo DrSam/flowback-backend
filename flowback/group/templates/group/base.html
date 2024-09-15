@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <style>
+        footer {
+            background-color: #F0991C;
+            color: white;
+            text-align: center;
+            padding: 10px;
+            }
+
+            footer p {
+            margin: 0;
+            font-size: 16px;
+            }
+    </style>
+    
+</head>
+<body>
+    <div style="margin-top:10px;margin-bottom: 10px;">
+        <img src="https://cdntest.forby.io/static/img/logo.png" 
+        alt="">
+    </div>
+    {% block content %}
+
+    {% endblock %}
+</body>
+<footer style="margin-top: 10px;margin-bottom: 10px;">
+        <p>&copy; Forby - 2024</p>
+    </div>
+</footer>
+
+</html>
+
+

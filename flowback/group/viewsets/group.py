@@ -21,8 +21,7 @@ from flowback.group import rules as group_rules
 from django.db.models import Q
 from django.db.models import Subquery, OuterRef, Count
 from flowback.user.models import User
-from django.core.mail import send_mail
-from backend.settings import DEFAULT_FROM_EMAIL, FLOWBACK_URL
+from django_q.tasks import async_task
 
 
 class GroupViewSetPermission(BasePermission):
@@ -32,7 +31,6 @@ class GroupViewSetPermission(BasePermission):
     def has_object_permission(self, request, view, obj):
         if view.action == 'can_update':
             return group_rules.is_admin.test(request.user,obj)
-        print(group_rules.is_group_admin.test(request.user,obj))
         if view.action == 'update':
             return group_rules.is_group_admin.test(request.user,obj)
         return super().has_object_permission(request,view,obj)
@@ -179,19 +177,21 @@ class GroupViewSet(
 
         users = User.objects.filter(
             id__in=request.data.get('user_ids',[])
-        ).exclude(
-            groupuserinvite__group=group,
-            groupuserinvite__status=GroupUserInviteStatusChoices.PENDING
-        ).exclude(
-            groupuser__group=group,
-            groupuser__active=True
         )
+        # .exclude(
+        #     groupuserinvite__group=group,
+        #     groupuserinvite__status=GroupUserInviteStatusChoices.PENDING
+        # ).exclude(
+        #     groupuser__group=group,
+        #     groupuser__active=True
+        # )
         for user in users:
-            if FLOWBACK_URL:
-                link = f'''Use this link to create your account: {FLOWBACK_URL}/create_account/
-                        ?email={user.email}&verification_code={user.verification_code}'''
-
-            send_mail('Flowback Verification Code', link, DEFAULT_FROM_EMAIL, [user.email])
+            task_id = async_task(
+                'flowback.group.tasks.share_group_with_user',
+                group.id,
+                user.id,
+                request.user.id
+            )
 
             
         return Response("OK",status.HTTP_200_OK)

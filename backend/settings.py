@@ -72,6 +72,7 @@ FLOWBACK_URL = env('FLOWBACK_URL')
 INSTANCE_NAME = env('INSTANCE_NAME')
 PG_SERVICE = env('PG_SERVICE')
 PG_PASS = env('PG_PASS')
+SITE_URL = env('SITE_URL')
 
 ALLOWED_HOSTS = [FLOWBACK_URL or "*"]
 
@@ -355,4 +356,5 @@ Q_CLUSTER = {
     'recycle':50,
     'orm':'default',
     'poll':5,
+    'retry':120,
 }

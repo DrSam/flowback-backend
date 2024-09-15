@@ -28,4 +28,4 @@ class GroupUserInviteFilter(django_filters.FilterSet):
 
     class Meta:
         model = GroupUserInvite
-        fields = ['user_contains','user_startswith']
+        fields = ['status','user_contains','user_startswith']
