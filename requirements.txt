@@ -8,6 +8,7 @@ pillow==10.0.1
 django-filter==21.1
 django-cors-headers==3.13.0
 django-pgtrigger==4.5.3
+django-q2==1.7.2
 django-storages==1.14.2
 boto3==1.28.69
 factory-boy==3.3.0
