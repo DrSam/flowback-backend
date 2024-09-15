@@ -114,7 +114,8 @@ INSTALLED_APPS = [
     'flowback.comment',
     'flowback.schedule',
     'flowback.files',
-    'drf_spectacular'
+    'drf_spectacular',
+    'django_q'
 ] + env('INTEGRATIONS')
 
 CELERY_BROKER_URL = env('RABBITMQ_BROKER_URL')
@@ -344,4 +345,14 @@ SIMPLE_JWT = {
     'USER_ID_FIELD':'email',
     "ACCESS_TOKEN_LIFETIME": timedelta(days=30),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=365),
+}
+
+
+# Django Q settings
+Q_CLUSTER = {
+    'name':'Forby',
+    'workers':2,
+    'recycle':50,
+    'orm':'default',
+    'poll':5,
 }
