@@ -1,0 +1,13 @@
+{% extends 'group/base.html' %}
+
+
+{% block content %}
+<p>
+    Hi {{user.first_name}},
+</p>
+<p>
+    <span style="font-weight: bold;">{{request_user.first_name}}</span>
+    wants to share the following community with you: <a href="{{site_url}}/community/{{group.id}}">
+        <span style="font-weight: bold;">{{group.name}}</span></a>. 
+</p>
+{% endblock %}
