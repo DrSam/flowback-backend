@@ -146,6 +146,9 @@ class GroupUserInvitationViewSet(
     def withdraw_invite(self, request, *args, **kwargs):
         group_invite = self.get_object()
         
+        if group_invite.status!=GroupUserInviteStatusChoices.PENDING:
+            return Response("Invalid invitation",status.HTTP_400_BAD_REQUEST)
+        
         # Withdraw invitation
         group_invite.status = GroupUserInviteStatusChoices.WITHDRAWN
         group_invite.save()
@@ -207,7 +210,6 @@ class GroupUserInvitationViewSet(
             }
         )
         return Response("OK",status.HTTP_200_OK)
-
 
     @action(
         detail=True,

@@ -110,3 +110,17 @@ class GroupUserViewSet(
                 },
                 status.HTTP_200_OK
             ) 
+    
+    @action(
+        detail=True,
+        methods=['POST'],
+        url_path='remove-from-group'
+    )
+    def remove_from_goup(self, request, *args, **kwargs):
+        group_user = self.get_object()
+        # Cannot remove admin
+        if group_user.is_admin:
+            return Response("Cannot remove admin",status.HTTP_400_BAD_REQUEST)
+        
+        group_user.delete()
+        return Response("OK",status.HTTP_204_NO_CONTENT)
