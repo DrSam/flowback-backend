@@ -39,7 +39,7 @@ class GroupViewSetPermission(BasePermission):
 class GroupViewSet(
     viewsets.ModelViewSet
 ):
-    queryset = Group.objects.all()
+    queryset = Group.objects
     serializer_class = GroupSerializer
     filter_backends = [django_filters.rest_framework.DjangoFilterBackend]
     filterset_class = GroupFilter
@@ -95,7 +95,8 @@ class GroupViewSet(
                 ).values('id')[:1]
             ),
             member_count = Count('groupuser'),
-            admin_count = Count('groupuser',filter=Q(groupuser__is_admin=True))
+            admin_count = Count('groupuser',filter=Q(groupuser__is_admin=True)),
+            open_poll_count = Count('decidables',filter=Q(decidables__state='open'))
         )
         return queryset
 

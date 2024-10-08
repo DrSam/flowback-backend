@@ -34,6 +34,8 @@ class Group(BaseModel):
     created_by = models.ForeignKey(User, on_delete=models.CASCADE)
     active = models.BooleanField(default=True)
 
+    is_hub_group = models.BooleanField(default=False)
+
     # Direct join determines if join requests requires moderation or not.
     direct_join = models.BooleanField(default=False)
 
@@ -67,6 +69,8 @@ class Group(BaseModel):
         constraints = [models.CheckConstraint(check=~Q(Q(public=False) & Q(direct_join=True)),
                                               name='group_not_public_and_direct_join_check')]
     
+    def __str__(self):
+        return self.name
 
     @classmethod
     def pre_save(cls, instance, raw, using, update_fields, *args, **kwargs):

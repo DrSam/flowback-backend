@@ -6,6 +6,7 @@ import django_filters
 from rest_framework.permissions import BasePermission
 from flowback.group.filters import GroupUserFilter
 from flowback.group.serializers import GroupUserSerializer
+from flowback.group.serializers import BasicGroupUserSerializer
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework import status
@@ -28,7 +29,7 @@ class GroupUserViewSet(
 ):
     _group = None
 
-    serializer_class = GroupUserSerializer
+    serializer_class = BasicGroupUserSerializer
     filter_backends = [django_filters.rest_framework.DjangoFilterBackend]
     filterset_class = GroupUserFilter
     permission_classes = [GroupUserViewSetPermission]
@@ -61,7 +62,7 @@ class GroupUserViewSet(
         if not group_user:
             return Response({},status.HTTP_200_OK)
         return Response(
-            GroupUserSerializer(group_user).data,
+            BasicGroupUserSerializer(group_user).data,
             status.HTTP_200_OK
         )
     
