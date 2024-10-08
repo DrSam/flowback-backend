@@ -16,6 +16,13 @@ class GroupCreateSerializer(serializers.ModelSerializer):
         fields = ['name','description','public','direct_join','default_quorum','default_approval_minimum','default_finalization_period']
     
 
+
+class BasicGroupUserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = GroupUser
+        fields = "__all__"
+
+
 class GroupSerializer(serializers.ModelSerializer):
     chat = serializers.PrimaryKeyRelatedField(queryset=MessageChannel.objects,required=False)
     is_member = serializers.SerializerMethodField()
@@ -24,6 +31,7 @@ class GroupSerializer(serializers.ModelSerializer):
     is_pending_join_request = serializers.SerializerMethodField()
     member_count = serializers.IntegerField()
     admin_count = serializers.IntegerField()
+    open_poll_count = serializers.IntegerField()
 
     def get_is_member(self,obj):
         if bool(getattr(obj,'is_member')):

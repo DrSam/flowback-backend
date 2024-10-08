@@ -104,6 +104,7 @@ INSTALLED_APPS = [
     'django_extensions',
     'rest_framework.authtoken',
     'django_celery_beat',
+    'django_logic',
     'pgtrigger',
     'rules',
     'flowback.user',
@@ -115,6 +116,7 @@ INSTALLED_APPS = [
     'flowback.comment',
     'flowback.schedule',
     'flowback.files',
+    'flowback.decidables',
     'drf_spectacular',
     'django_q'
 ] + env('INTEGRATIONS')
@@ -124,6 +126,7 @@ CELERY_BROKER_URL = env('RABBITMQ_BROKER_URL')
 REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'flowback.common.documentation.CustomAutoSchema',
     'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.SessionAuthentication',
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': (
@@ -357,4 +360,5 @@ Q_CLUSTER = {
     'orm':'default',
     'poll':5,
     'retry':120,
+    'timeout':60
 }
