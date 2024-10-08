@@ -1,10 +1,9 @@
 from django.apps import AppConfig
 
 
-class GroupConfig(AppConfig):
+class DecidablesConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
-    name = 'flowback.group'
+    name = 'flowback.decidables'
 
     def ready(self) -> None:
-        from . import rules
-        from . import signals
+        from . import logic

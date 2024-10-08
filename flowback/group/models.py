@@ -20,7 +20,6 @@ from flowback.schedule.models import Schedule
 from flowback.schedule.services import create_schedule
 from flowback.user.models import User
 from django.db import models
-from flowback.group.rules import is_group_admin, is_group_user
 from flowback.group.fields import GroupUserInviteStatusChoices
 
 # Create your models here.
@@ -34,6 +33,8 @@ class GroupFolder(BaseModel):
 class Group(BaseModel):
     created_by = models.ForeignKey(User, on_delete=models.CASCADE)
     active = models.BooleanField(default=True)
+
+    is_hub_group = models.BooleanField(default=False)
 
     # Direct join determines if join requests requires moderation or not.
     direct_join = models.BooleanField(default=False)
@@ -53,7 +54,9 @@ class Group(BaseModel):
     image = models.ImageField(upload_to='group/image', null=True, blank=True)
     cover_image = models.ImageField(upload_to='group/cover_image', null=True, blank=True)
     hide_poll_users = models.BooleanField(default=False)  # Hides users in polls, TODO remove bool from views
-    default_quorum = models.IntegerField(default=0, validators=[MinValueValidator(0), MaxValueValidator(100)])
+    default_quorum = models.IntegerField(default=50, validators=[MinValueValidator(1), MaxValueValidator(100)])
+    default_approval_minimum = models.PositiveIntegerField(default=51, validators=[MinValueValidator(1), MaxValueValidator(100)])
+    default_finalization_period = models.PositiveIntegerField(default=3,validators=[MinValueValidator(1), MaxValueValidator(30)],)
     schedule = models.ForeignKey(Schedule, null=True, blank=True, on_delete=models.PROTECT)
     kanban = models.ForeignKey(Kanban, null=True, blank=True, on_delete=models.PROTECT)
     chat = models.ForeignKey(MessageChannel, on_delete=models.PROTECT)
@@ -66,6 +69,8 @@ class Group(BaseModel):
         constraints = [models.CheckConstraint(check=~Q(Q(public=False) & Q(direct_join=True)),
                                               name='group_not_public_and_direct_join_check')]
     
+    def __str__(self):
+        return self.name
 
     @classmethod
     def pre_save(cls, instance, raw, using, update_fields, *args, **kwargs):

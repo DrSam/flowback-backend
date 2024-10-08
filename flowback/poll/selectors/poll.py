@@ -16,6 +16,7 @@ from flowback.user.models import User
 from flowback.group.selectors import group_user_permissions
 
 
+
 class BasePollFilter(django_filters.FilterSet):
     order_by = django_filters.OrderingFilter(fields=(('start_date', 'start_date_asc'),
                                                      ('-start_date', 'start_date_desc'),

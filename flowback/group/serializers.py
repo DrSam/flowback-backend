@@ -13,11 +13,47 @@ class BasicGroupSerializer(serializers.ModelSerializer):
 class GroupCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Group
-        fields = ['name','description','public','direct_join']
+        fields = ['name','description','public','direct_join','default_quorum','default_approval_minimum','default_finalization_period']
     
+
+
+class BasicGroupUserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = GroupUser
+        fields = "__all__"
+
 
 class GroupSerializer(serializers.ModelSerializer):
     chat = serializers.PrimaryKeyRelatedField(queryset=MessageChannel.objects,required=False)
+    is_member = serializers.SerializerMethodField()
+    is_admin = serializers.SerializerMethodField()
+    is_pending_invite = serializers.SerializerMethodField()
+    is_pending_join_request = serializers.SerializerMethodField()
+    member_count = serializers.IntegerField()
+    admin_count = serializers.IntegerField()
+    open_poll_count = serializers.IntegerField()
+
+    def get_is_member(self,obj):
+        if bool(getattr(obj,'is_member')):
+            return True
+        return False
+    
+    def get_is_admin(self,obj):
+        if bool(getattr(obj,'is_admin')):
+            return True
+        return False
+    
+    def get_is_pending_invite(self,obj):
+        if bool(getattr(obj,'is_pending_invite')):
+            return True
+        return False
+    
+    def get_is_pending_join_request(self,obj):
+        if bool(getattr(obj,'is_pending_join_request')):
+            return True
+        return False
+    
+
 
     class Meta:
         model = Group
@@ -61,10 +97,4 @@ class GroupUserInviteSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = GroupUserInvite
-        fields = "__all__"
-
-
-class MyGroupWithUserSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Group
         fields = "__all__"

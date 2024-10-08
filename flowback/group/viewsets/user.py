@@ -6,6 +6,7 @@ import django_filters
 from rest_framework.permissions import BasePermission
 from flowback.group.filters import GroupUserFilter
 from flowback.group.serializers import GroupUserSerializer
+from flowback.group.serializers import BasicGroupUserSerializer
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework import status
@@ -14,7 +15,7 @@ from flowback.group.models import GroupUserInvite
 from flowback.group.fields import GroupUserInviteStatusChoices as choices
 from flowback.user.serializers import BasicUserSerializer
 import rules.predicates
-
+from flowback.group import rules as group_rules
 class GroupUserViewSetPermission(BasePermission):
     def has_permission(self, request, view):
         return rules.predicates.is_authenticated(request.user)
@@ -28,7 +29,7 @@ class GroupUserViewSet(
 ):
     _group = None
 
-    serializer_class = GroupUserSerializer
+    serializer_class = BasicGroupUserSerializer
     filter_backends = [django_filters.rest_framework.DjangoFilterBackend]
     filterset_class = GroupUserFilter
     permission_classes = [GroupUserViewSetPermission]
@@ -59,9 +60,9 @@ class GroupUserViewSet(
             user = request.user
         ).first()
         if not group_user:
-            return Response("User does not exist",status.HTTP_400_BAD_REQUEST)
+            return Response({},status.HTTP_200_OK)
         return Response(
-            GroupUserSerializer(group_user).data,
+            BasicGroupUserSerializer(group_user).data,
             status.HTTP_200_OK
         )
     
@@ -110,3 +111,17 @@ class GroupUserViewSet(
                 },
                 status.HTTP_200_OK
             ) 
+    
+    @action(
+        detail=True,
+        methods=['POST'],
+        url_path='remove-from-group'
+    )
+    def remove_from_goup(self, request, *args, **kwargs):
+        group_user = self.get_object()
+        # Cannot remove admin
+        if group_user.is_admin:
+            return Response("Cannot remove admin",status.HTTP_400_BAD_REQUEST)
+        
+        group_user.delete()
+        return Response("OK",status.HTTP_204_NO_CONTENT)
