@@ -92,6 +92,9 @@ class Decidable(TimeStampedModel,TitleDescriptionModel):
         null=True,
         blank=True
     )
+
+    def get_root_decidable(self):
+        return self.root_decidable or self
     
     # Depending on deciable type, code logic will be required to setup decidable properly
     decidable_type = models.CharField(max_length=256,choices=DecidableTypeChoices.choices)

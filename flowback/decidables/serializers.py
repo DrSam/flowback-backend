@@ -3,7 +3,7 @@ from . import models
 from rest_framework.exceptions import ValidationError
 
 
-    
+
 # Detail Serializers
 class DecidableDetailSerializer(serializers.ModelSerializer):
     available_actions = serializers.SerializerMethodField()
@@ -13,6 +13,10 @@ class DecidableDetailSerializer(serializers.ModelSerializer):
     option_count = serializers.SerializerMethodField()
     attachments = serializers.SerializerMethodField()
     options = serializers.SerializerMethodField()
+    root_state = serializers.SerializerMethodField()
+
+    def get_root_state(self,obj):
+        return obj.get_root_decidable().state
 
     def get_options(self,obj):
         return OptionListSerializer(instance=obj.options,many=True).data
@@ -43,8 +47,12 @@ class OptionDetailSerializer(serializers.ModelSerializer):
     votes = serializers.IntegerField(read_only=True)
     user_vote = serializers.IntegerField(read_only=True)
     option_rank = serializers.IntegerField(read_only=True)
-
     attachments = serializers.SerializerMethodField()
+    root_state = serializers.SerializerMethodField()
+
+    def get_root_state(self,obj):
+        return obj.root_decidable.state
+
     
     class Meta:
         model = models.Option
@@ -82,6 +90,11 @@ class DecidableListSerializer(serializers.ModelSerializer):
     votes = serializers.IntegerField(read_only=True)
     user_vote = serializers.IntegerField(read_only=True)
     option_count = serializers.SerializerMethodField()
+    root_state = serializers.SerializerMethodField()
+
+    def get_root_state(self,obj):
+        return obj.get_root_decidable().state
+    
 
     def get_option_count(self,obj):
         return obj.options.count()
@@ -108,6 +121,10 @@ class OptionListSerializer(serializers.ModelSerializer):
     votes = serializers.IntegerField(read_only=True)
     user_vote = serializers.IntegerField(read_only=True)
     option_rank = serializers.IntegerField(read_only=True)
+    root_state = serializers.SerializerMethodField()
+
+    def get_root_state(self,obj):
+        return obj.root_decidable.state
 
     class Meta:
         model = models.Option
@@ -118,6 +135,10 @@ class OptionListSerializer(serializers.ModelSerializer):
 class DecidableCreateSerializer(serializers.ModelSerializer):
     attachments = serializers.SerializerMethodField()
     options = serializers.SerializerMethodField()
+    root_state = serializers.SerializerMethodField()
+
+    def get_root_state(self,obj):
+        return obj.get_root_decidable().state
 
     def get_options(self,obj):
         return OptionListSerializer(instance=obj.options,many=True).data
@@ -133,7 +154,11 @@ class DecidableCreateSerializer(serializers.ModelSerializer):
 
 class OptionCreateSerializer(serializers.ModelSerializer):
     attachments = serializers.SerializerMethodField()
+    root_state = serializers.SerializerMethodField()
 
+    def get_root_state(self,obj):
+        return obj.root_decidable.state
+    
     def get_attachments(self,obj):
         return AttachmentDetailSerializer(instance=obj.attachments,many=True).data
 

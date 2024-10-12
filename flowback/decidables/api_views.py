@@ -62,11 +62,8 @@ class DecidableViewSet(ModelViewSet):
         self._group = group
         return self._group
 
-    def get_queryset(self):
-        queryset = decidable_models.Decidable.objects.filter(
-            groups=self.get_group(),
-            root_decidable=None
-        ).annotate(
+    def annotate_queryset(self,queryset):
+        queryset = queryset.annotate(
             votes=Subquery(
                 decidable_models.GroupDecidableAccess.objects.filter(
                     group=self.get_group(),
@@ -84,12 +81,20 @@ class DecidableViewSet(ModelViewSet):
         )
         return queryset
 
-    def get_open_decidables_rank(self,main_queryset):
+    def get_queryset(self):
         queryset = decidable_models.Decidable.objects.filter(
             groups=self.get_group(),
+        )
+        return queryset
+
+    def get_decidables_rank(self,main_queryset,queryset=None):
+        if queryset is None:
+            queryset = decidable_models.Decidable.objects.filter(
+            groups=self.get_group(),
             state=DecidableStateChoices.OPEN,
-            root_decidable=None
-        ).annotate(
+            root_decidable=None,
+        )
+        queryset = queryset.annotate(
             votes=Subquery(
                 decidable_models.GroupDecidableAccess.objects.filter(
                     group=self.get_group(),
@@ -115,7 +120,8 @@ class DecidableViewSet(ModelViewSet):
 
     def get_object(self):
         queryset = self.filter_queryset(self.get_queryset())
-        queryset = self.get_open_decidables_rank(queryset)
+        queryset = self.annotate_queryset(queryset)
+        queryset = self.get_decidables_rank(queryset)
         # Perform the lookup filtering.
         lookup_url_kwarg = self.lookup_url_kwarg or self.lookup_field
 
@@ -140,16 +146,19 @@ class DecidableViewSet(ModelViewSet):
         return context
 
     def get_serializer_class(self):
-        if self.action in ['create','confirm']:
+        if self.action in ['create','confirm','create_aspect']:
             return decidable_serializers.DecidableCreateSerializer
-        if not self.detail:
+        elif self.action in ['aspect']:
+            return decidable_serializers.DecidableListSerializer
+        elif not self.detail:
             return decidable_serializers.DecidableListSerializer
         else:
             return decidable_serializers.DecidableDetailSerializer
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
-        queryset = self.get_open_decidables_rank(queryset)
+        queryset = self.annotate_queryset(queryset)
+        queryset = self.get_decidables_rank(queryset)
 
         page = self.paginate_queryset(queryset)
         if page is not None:
@@ -166,7 +175,6 @@ class DecidableViewSet(ModelViewSet):
 
         data = parser.validate_data
         attachments = data.pop('attachments',[])
-        print(attachments)
 
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
@@ -257,6 +265,74 @@ class DecidableViewSet(ModelViewSet):
         getattr(decidable.fsm,request.data.get('state'))(user=request.user)
         serializer = decidable_serializers.DecidableListSerializer(decidable)
         return Response(serializer.data,status.HTTP_200_OK)
+
+    @action(
+        detail=True,
+        methods=['GET']
+    )
+    def aspect(self, request, *args, **kwargs):
+        primary_decidable = self.get_object()
+        queryset = primary_decidable.secondary_decidables.all()
+        queryset = self.filter_queryset(queryset)
+        queryset = self.annotate_queryset(queryset)
+        queryset = self.get_decidables_rank(
+            queryset,
+            queryset=primary_decidable.secondary_decidables.all()
+        )
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data,status.HTTP_200_OK)
+
+
+    @aspect.mapping.post
+    def create_aspect(self, request, *args, **kwargs):
+        primary_decidable = self.get_object()
+
+        parser = NestedParser(request.data)
+        if not parser.is_valid():
+            return Response(parser.errors,status.HTTP_200_OK)
+
+        data = parser.validate_data
+        attachments = data.pop('attachments',[])
+
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
+
+        group_user = GroupUser.objects.filter(
+            user=request.user,
+            group_id=request.data.get('group')
+        ).first()
+        aspect = serializer.save(
+            created_by=group_user,
+            primary_decidable=primary_decidable,
+            root_decidable = primary_decidable.get_root_decidable()
+        )
+
+        # Add all groups that are within root decidable        
+        root_decidable = primary_decidable.get_root_decidable()
+        group_ids = [group.id for group in root_decidable.groups.all()]
+        for group_id in group_ids:
+            aspect.groups.add(group_id)
+
+    
+        # Attach all options in the primary decidable to the aspect decidable
+        for option in primary_decidable.options.all():
+            aspect.options.add(option)
+        
+            for group in aspect.get_root_decidable().groups.all():
+                decidable_option = decidable_models.DecidableOption.objects.get(
+                    decidable = aspect,
+                    option = option
+                )
+                decidable_option.groups.add(group)
+        
+        for attachment in attachments:
+            attachment['decidable'] = aspect.id
+
+        attachment_serializer = decidable_serializers.AttachmentCreateSerializer(data=attachments,many=True)
+        if attachment_serializer.is_valid():
+            attachment_serializer.save()
+        
+        return Response(serializer.data, status=status.HTTP_201_CREATED)    
 
 
 class AttachmentViewSetPermission(BasePermission):
@@ -393,6 +469,8 @@ class OptionViewSet(
         return Response(serializer.data)
 
     def create(self, request, *args, **kwargs):
+        decidable = self.get_decidable()
+
         parser = NestedParser(request.data)
         if not parser.is_valid():
             return Response(parser.errors,status.HTTP_200_OK)
@@ -402,15 +480,18 @@ class OptionViewSet(
 
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
-        option = serializer.save()
+        option = serializer.save(
+            root_decidable=decidable.get_root_decidable()
+        )
         option.decidables.add(self.get_decidable())
 
         # Add group
-        decidable_option = decidable_models.DecidableOption.objects.get(
-            decidable = self.get_decidable(),
-            option = option
-        )
-        decidable_option.groups.add(self.get_group())
+        for group in decidable.get_root_decidable().groups.all():
+            decidable_option = decidable_models.DecidableOption.objects.get(
+                decidable = self.get_decidable(),
+                option = option
+            )
+            decidable_option.groups.add(group)
 
         # Add attachments
         for attachment in attachments:
@@ -421,7 +502,6 @@ class OptionViewSet(
         if attachment_serializer.is_valid():
             attachment_serializer.save()
 
-        print(serializer.data)
             
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
