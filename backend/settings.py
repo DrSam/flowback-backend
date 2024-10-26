@@ -355,10 +355,10 @@ SIMPLE_JWT = {
 # Django Q settings
 Q_CLUSTER = {
     'name':'Forby',
-    'workers':2,
+    'workers':1,
     'recycle':50,
     'orm':'default',
-    'poll':5,
     'retry':120,
-    'timeout':60
+    'timeout':60,
+    'sync':False
 }

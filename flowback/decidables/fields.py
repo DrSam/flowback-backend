@@ -9,16 +9,20 @@ class DecidableStateChoices(models.TextChoices):
 
 class DecidableTypeChoices(models.TextChoices):
     POLL = ("poll","Poll")
-    REASONPOLL = ("reasonpoll","Reason Poll")
-    LINKFILEPOLL = ("linkfilepoll","Link File Poll")
-    VOTEPOLL = ("votepoll","Vote poll")
+    ASPECT = ("aspect","Aspect Poll")
+    REASONPOLL = ("reason","Reason Poll")
+    LINKFILEPOLL = ("linkfile","Link File Poll")
+    VOTEPOLL = ("vote","Vote")
     CHALLENGE = ("challenge","Challenge")
     ELECTION = ("election","Election")
 
 
 class VoteTypeChoices(models.TextChoices):
-    APPROVAL = ("approval","Approval")
     SCORE = ("score","Score")
+    PERCENTAGE = ("percentage","Percentage")
+    APPROVAL = ("approval","Approval")
+    NUMBER = ("number","Number")
+    RATING = ("rating","Rating")
 
 
 class VoteAggChoices(models.TextChoices):

@@ -4,6 +4,12 @@ from rest_framework.exceptions import ValidationError
 
 
 
+class DecidableStumpSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.Decidable
+        fields = "__all__"
+
+
 # Detail Serializers
 class DecidableDetailSerializer(serializers.ModelSerializer):
     available_actions = serializers.SerializerMethodField()
@@ -36,11 +42,12 @@ class DecidableDetailSerializer(serializers.ModelSerializer):
             user=request.user
         )
 
-    
-
     class Meta:
         model = models.Decidable
         fields = "__all__"
+
+
+
 
 
 class OptionDetailSerializer(serializers.ModelSerializer):
@@ -49,6 +56,7 @@ class OptionDetailSerializer(serializers.ModelSerializer):
     option_rank = serializers.IntegerField(read_only=True)
     attachments = serializers.SerializerMethodField()
     root_state = serializers.SerializerMethodField()
+    reason_decidable = DecidableStumpSerializer(read_only=True)
 
     def get_root_state(self,obj):
         return obj.root_decidable.state
@@ -85,6 +93,7 @@ class AttachmentDetailSerializer(serializers.ModelSerializer):
 
 # List Serializers
 class DecidableListSerializer(serializers.ModelSerializer):
+    attachments = serializers.SerializerMethodField()
     available_actions = serializers.SerializerMethodField()
     poll_rank = serializers.IntegerField(read_only=True)
     votes = serializers.IntegerField(read_only=True)
@@ -95,10 +104,8 @@ class DecidableListSerializer(serializers.ModelSerializer):
     def get_root_state(self,obj):
         return obj.get_root_decidable().state
     
-
     def get_option_count(self,obj):
         return obj.options.count()
-
 
     def get_rank(self,obj):
         return getattr(obj,'rank',None)
@@ -110,6 +117,9 @@ class DecidableListSerializer(serializers.ModelSerializer):
         return obj.fsm.get_available_actions(
             user=request.user
         )
+    
+    def get_attachments(self,obj):
+        return AttachmentDetailSerializer(instance=obj.attachments,many=True).data
 
     
     class Meta:
@@ -118,13 +128,18 @@ class DecidableListSerializer(serializers.ModelSerializer):
 
 
 class OptionListSerializer(serializers.ModelSerializer):
+    attachments = serializers.SerializerMethodField()
     votes = serializers.IntegerField(read_only=True)
     user_vote = serializers.IntegerField(read_only=True)
     option_rank = serializers.IntegerField(read_only=True)
     root_state = serializers.SerializerMethodField()
+    reason_decidable = DecidableStumpSerializer(read_only=True)
 
     def get_root_state(self,obj):
         return obj.root_decidable.state
+    
+    def get_attachments(self,obj):
+        return AttachmentDetailSerializer(instance=obj.attachments,many=True).data
 
     class Meta:
         model = models.Option

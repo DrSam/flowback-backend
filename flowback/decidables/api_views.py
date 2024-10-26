@@ -17,10 +17,12 @@ from django.db.models import Subquery, OuterRef
 from rest_framework.generics import get_object_or_404
 from django.db.models import Sum
 from flowback.decidables.fields import DecidableStateChoices
+from flowback.decidables.fields import DecidableTypeChoices
 from django.db.models import Case, When
 from django.db.models import IntegerField
 from nested_multipart_parser import NestedParser
-
+from django_q.tasks import async_task
+from flowback.decidables.fields import VoteTypeChoices
 
 
 class DecidableViewSetPermission(BasePermission):
@@ -85,6 +87,8 @@ class DecidableViewSet(ModelViewSet):
         queryset = decidable_models.Decidable.objects.filter(
             groups=self.get_group(),
         )
+        if self.action not in  ['update','partial_update','confirm']:
+            queryset = queryset.filter(confirmed=True)
         return queryset
 
     def get_decidables_rank(self,main_queryset,queryset=None):
@@ -111,7 +115,7 @@ class DecidableViewSet(ModelViewSet):
         main_queryset = main_queryset.annotate(
             poll_rank=Case(
                 *whens,
-                default=0,
+                default=999,
                 output_field=IntegerField()
             )
         )
@@ -205,8 +209,15 @@ class DecidableViewSet(ModelViewSet):
         decidable.confirmed = True
         decidable.save()
 
-
-
+        # Different decidable types will have more processing
+        #TODO: Move to async later on
+        # if decidable.decidable_type == DecidableTypeChoices.VOTEPOLL:
+            # from flowback.decidables.tasks import after_decidable_confirm
+            # after_decidable_confirm(decidable.id)
+            # async_task(
+            #     'flowback.decidables.tasks.after_decidable_confirm',
+            #     decidable.id
+            # )
         
         return Response("OK",status.HTTP_200_OK)
     
@@ -229,30 +240,19 @@ class DecidableViewSet(ModelViewSet):
         if request.data.get('vote',None) is None:
             return Response("Vote not submitted",status.HTTP_400_BAD_REQUEST)
         
-        # Get groups with access to decidable, that the user is a part of
-        group_decidable_accesses = decidable.group_decidable_access.filter(
-            group__groupuser__user=request.user,
-            group__groupuser__active=True
+        #TODO: Move to async later
+        from flowback.decidables.tasks import update_decidable_votes
+        update_decidable_votes(
+            decidable.id,
+            request.user.id,
+            request.data.get('vote')
         )
-
-        # Set the user's vote for all of the above groups with the current vote
-        for group_decidable_access in group_decidable_accesses:
-            group_user = group_decidable_access.group.groupuser_set.get(
-                user=request.user,
-                active=True
-            )
-            decidable_models.GroupUserDecidableVote.objects.update_or_create(
-                group_decidable_access=group_decidable_access,
-                group_user=group_user,
-                defaults={
-                    'value':request.data.get('vote')
-                }
-            )
-
-        # For each group, update votes
-        for group_decidable_access in group_decidable_accesses:
-            group_decidable_access.value = group_decidable_access.group_user_decidable_vote.aggregate(Sum('value'))['value__sum'] or 0
-            group_decidable_access.save()
+        # async_task(
+        #     'flowback.decidables.tasks.update_decidable_votes',
+        #     decidable.id,
+        #     request.user.id,
+        #     request.data.get('vote')
+        # )
 
         return Response("OK",status.HTTP_200_OK)
 
@@ -281,7 +281,6 @@ class DecidableViewSet(ModelViewSet):
         )
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data,status.HTTP_200_OK)
-
 
     @aspect.mapping.post
     def create_aspect(self, request, *args, **kwargs):
@@ -381,26 +380,52 @@ class OptionViewSet(
     def get_queryset(self):
         queryset = decidable_models.Option.objects.filter(
             decidables=self.get_decidable()
-        ).annotate(
+        )
+
+        return queryset
+
+    def annotate_queryset(self, queryset):
+        queryset = queryset.annotate(
             votes=Subquery(
                 decidable_models.GroupDecidableOptionAccess.objects.filter(
                     group=self.get_group(),
-                    decidable_option__option__id=OuterRef('id'),
-                    decidable_option__decidable=self.get_decidable()
+                    decidable_option__decidable_id=self.get_decidable().id,
+                    decidable_option__option_id=OuterRef('id')
                 ).values('value')[:1]
             ),
             user_vote=Subquery(
                 decidable_models.GroupUserDecidableOptionVote.objects.filter(
                     group_decidable_option_access__group=self.get_group(),
+                    group_decidable_option_access__decidable_option__decidable_id=self.get_decidable().id,
                     group_decidable_option_access__decidable_option__option_id=OuterRef('id'),
-                    group_decidable_option_access__decidable_option__decidable=self.get_decidable(),
                     group_user__group=self.get_group(),
                     group_user__user=self.request.user
                 ).values('value')[:1]
             )
         )
-
         return queryset
+
+    def get_object(self):
+        queryset = self.filter_queryset(self.get_queryset())
+        queryset = self.annotate_queryset(queryset)
+        queryset = self.get_options_rank(queryset)
+        # Perform the lookup filtering.
+        lookup_url_kwarg = self.lookup_url_kwarg or self.lookup_field
+
+        assert lookup_url_kwarg in self.kwargs, (
+            'Expected view %s to be called with a URL keyword argument '
+            'named "%s". Fix your URL conf, or set the `.lookup_field` '
+            'attribute on the view correctly.' %
+            (self.__class__.__name__, lookup_url_kwarg)
+        )
+
+        filter_kwargs = {self.lookup_field: self.kwargs[lookup_url_kwarg]}
+        obj = get_object_or_404(queryset, **filter_kwargs)
+
+        # May raise a permission denied
+        self.check_object_permissions(self.request, obj)
+
+        return obj
 
     def get_group(self):
         if self._group:
@@ -458,6 +483,7 @@ class OptionViewSet(
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
+        queryset = self.annotate_queryset(queryset)
         queryset = self.get_options_rank(queryset)
 
         page = self.paginate_queryset(queryset)
@@ -477,6 +503,7 @@ class OptionViewSet(
 
         data = parser.validate_data
         attachments = data.pop('attachments',[])
+        tags = data.pop('tags',[])
 
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
@@ -484,6 +511,15 @@ class OptionViewSet(
             root_decidable=decidable.get_root_decidable()
         )
         option.decidables.add(self.get_decidable())
+
+        # Add tags, and later whatever we need for the decidable_option
+        decidable_option = decidable_models.DecidableOption.objects.get(
+            decidable = self.get_decidable(),
+            option = option
+        )
+        if len(tags)>0:
+            decidable_option.tags = tags
+            decidable_option.save()
 
         # Add group
         for group in decidable.get_root_decidable().groups.all():
@@ -502,7 +538,20 @@ class OptionViewSet(
         if attachment_serializer.is_valid():
             attachment_serializer.save()
 
-            
+        # Add reason if this is a vote poll
+        if decidable.decidable_type == DecidableTypeChoices.VOTEPOLL:
+            reason_poll = decidable_models.Decidable.objects.create(
+                root_decidable = option.root_decidable,
+                reason_option = option,
+                created_by = decidable.created_by,
+                decidable_type=DecidableTypeChoices.REASONPOLL,
+                voting_type=VoteTypeChoices.APPROVAL,
+                has_tags_flag=True,
+                tags=['for','against','neutral'],
+                members_can_add_options=True,
+                confirmed=True,
+            )
+            reason_poll.groups.set(list(decidable.groups.values_list('id',flat=True)))
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     @action(
@@ -512,38 +561,26 @@ class OptionViewSet(
     def vote(self, request, *args, **kwargs):
         option = self.get_object()
         decidable = self.get_decidable()
-        group = self.get_group()
 
         value = request.data.get('vote')
         if value is None:
             return Response("Vote missing",status.HTTP_400_BAD_REQUEST)
         
-        decidable_option = option.decidable_option.filter(
-            decidable = decidable
-        ).first()
-        # Get groups with access to option, that the user is a part of
-        group_decidable_option_accesses = decidable_option.group_decidable_option_access.filter(
-            group__groupuser__user=request.user,
-            group__groupuser__active=True
+        #TODO: Move to async later
+        from flowback.decidables.tasks import update_option_votes
+        update_option_votes(
+            decidable.id,
+            option.id,
+            request.user.id,
+            request.data.get('vote')
         )
-
-        # Set the user's vote for all of the above groups with the current vote
-        for group_decidable_option_access in group_decidable_option_accesses:
-            group_user = group_decidable_option_access.group.groupuser_set.get(
-                user=request.user,
-                active=True
-            )
-            decidable_models.GroupUserDecidableOptionVote.objects.update_or_create(
-                group_decidable_option_access=group_decidable_option_access,
-                group_user=group_user,
-                defaults={
-                    'value':request.data.get('vote')
-                }
-            )
-
-        # For each group, update votes
-        for group_decidable_option_access in group_decidable_option_accesses:
-            group_decidable_option_access.value = group_decidable_option_access.group_user_decidable_option_vote.aggregate(Sum('value'))['value__sum'] or 0
-            group_decidable_option_access.save()
-
-        return Response("OK",status.HTTP_200_OK)
+        # async_task(
+        #     'flowback.decidables.tasks.update_option_votes',
+        #     decidable.id,
+        #     option.id,
+        #     request.user.id,
+        #     request.data.get('vote')
+        # )
+        option = self.get_object()
+        serializer = self.get_serializer(instance=option)
+        return Response(serializer.data,status.HTTP_200_OK)
