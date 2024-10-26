@@ -69,6 +69,16 @@ class Decidable(TimeStampedModel,TitleDescriptionModel):
         blank=True
     )
 
+    # When the decidable is a reasons poll for an option
+    # To simplify a query every time we need to pull it up
+    reason_option = models.OneToOneField(
+        'decidables.Option',
+        related_name='reason_decidable',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True
+    )
+
     is_container = models.BooleanField(default=False)
 
     created_by = models.ForeignKey(
@@ -98,6 +108,7 @@ class Decidable(TimeStampedModel,TitleDescriptionModel):
     
     # Depending on deciable type, code logic will be required to setup decidable properly
     decidable_type = models.CharField(max_length=256,choices=DecidableTypeChoices.choices)
+    voting_type = models.CharField(max_length=64, choices=VoteTypeChoices.choices,default=VoteTypeChoices.RATING)
 
     # Tags may be required when entering an option
     tags = models.JSONField(blank=True,default=list)
@@ -112,6 +123,8 @@ class Decidable(TimeStampedModel,TitleDescriptionModel):
         validators=[MinValueValidator(1), MaxValueValidator(30)],
         help_text='Finalization period in days'
     )
+    has_winners = models.BooleanField(default=False,blank=True)
+    num_winners = models.IntegerField(null=True,blank=True)
 
     # Decidable options
     active = models.BooleanField(default=False)
@@ -120,6 +133,8 @@ class Decidable(TimeStampedModel,TitleDescriptionModel):
     confirmed = models.BooleanField(default=False)
 
     def __str__(self):
+        if self.decidable_type==DecidableTypeChoices.REASONPOLL:
+            return f'Reason poll for: {self.reason_option.title}'
         return self.title
 
 
@@ -145,7 +160,7 @@ class GroupDecidableOptionAccess(TimeStampedModel):
     def __str__(self):
         return f'{self.decidable_option} - {self.group}'
 
-    
+
 class DecidableOption(TimeStampedModel):
     decidable = models.ForeignKey(
         'decidables.Decidable',
@@ -184,6 +199,7 @@ class Option(TimeStampedModel,TitleDescriptionModel):
         null=True,
         blank=True
     )
+    
 
     def __str__(self):
         return self.title
