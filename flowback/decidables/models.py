@@ -53,6 +53,14 @@ class Decidable(TimeStampedModel,TitleDescriptionModel):
         blank=True
     )
 
+    topic = models.ForeignKey(
+        'group.Topic',
+        related_name='decidables',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True
+    )
+
     # Parents, for nested decidables
     parent_decidable = models.ForeignKey(
         'self',
@@ -133,7 +141,7 @@ class Decidable(TimeStampedModel,TitleDescriptionModel):
     confirmed = models.BooleanField(default=False)
 
     def __str__(self):
-        if self.decidable_type==DecidableTypeChoices.REASONPOLL:
+        if self.decidable_type==DecidableTypeChoices.REASONPOLL and self.reason_option:
             return f'Reason poll for: {self.reason_option.title}'
         return self.title
 

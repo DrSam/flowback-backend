@@ -15,8 +15,8 @@ from flowback.group.models import GroupUserInvite
 from flowback.group.fields import GroupUserInviteStatusChoices
 from flowback.group.serializers import GroupUserInviteSerializer
 import rules.predicates
-from flowback.chat.models import MessageChannel
-from flowback.chat.models import MessageChannelParticipant
+from feed.models import Channel
+from feed.fields import ChannelTypechoices
 from flowback.group import rules as group_rules
 from django.db.models import Q
 from django.db.models import Subquery, OuterRef, Count
@@ -113,17 +113,13 @@ class GroupViewSet(
             is_admin=True
         )
 
-        message_channel = MessageChannel.objects.create(
-            origin_name = 'group',
-            title = group.name
+        #TODO: Create feed channel
+        channel = Channel.objects.create(
+            type = ChannelTypechoices.GROUP,
+            title = group.name,
+            group=group
         )
-        group.chat = message_channel
-        group.save()
-
-        MessageChannelParticipant.objects.create(
-            channel=message_channel,
-            user=request.user
-        )
+        channel.participants.add(request.user)
 
         return Response("OK",status.HTTP_201_CREATED)
 
