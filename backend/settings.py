@@ -116,6 +116,7 @@ INSTALLED_APPS = [
     'flowback.comment',
     'flowback.schedule',
     'flowback.files',
+    'feed',
     'flowback.decidables',
     'drf_spectacular',
     'django_q'
@@ -235,12 +236,13 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 
 ASGI_APPLICATION = "backend.asgi.application"
 
+# "channels_redis.core.RedisChannelLayer"
+# "CONFIG": {
+#             "hosts": [(env('REDIS_IP'), env('REDIS_PORT'))],
+#         },
 CHANNEL_LAYERS = {
     "default": {
-        "BACKEND": "channels_redis.core.RedisChannelLayer",
-        "CONFIG": {
-            "hosts": [(env('REDIS_IP'), env('REDIS_PORT'))],
-        },
+        "BACKEND": "channels.layers.InMemoryChannelLayer"  
     },
 }
 

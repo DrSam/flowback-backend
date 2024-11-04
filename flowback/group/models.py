@@ -110,6 +110,20 @@ class Group(BaseModel):
         instance.chat.delete()
 
 
+class Topic(BaseModel):
+    group = models.ForeignKey(
+        Group,
+        related_name='topics',
+        on_delete=models.CASCADE
+    )
+    name = models.CharField(max_length=256)
+    description = models.TextField(blank=True, default='')
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['group', 'name'], name='group_unique_topics')]
+
+
+
 pre_save.connect(Group.pre_save, sender=Group)
 post_save.connect(Group.post_save, sender=Group)
 post_save.connect(Group.user_post_save, sender=User)
@@ -248,6 +262,13 @@ class GroupUserInvite(BaseModel):
     status = models.CharField(
         choices=GroupUserInviteStatusChoices.choices,
         default=GroupUserInviteStatusChoices.PENDING
+    )
+    initiator = models.ForeignKey(
+        User,
+        related_name='sent_invites', 
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True
     )
 
 

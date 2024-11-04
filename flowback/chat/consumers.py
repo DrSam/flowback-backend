@@ -17,9 +17,10 @@ from flowback.user.models import User
 from flowback.group.models import Group
 from flowback.group.services import group_user_permissions
 from flowback.user.serializers import BasicUserSerializer
-
+import json
 
 class ChatConsumer(AsyncWebsocketConsumer):
+    participating_channels = None
 
     # The function responsible for establishing connections between the end user and the server
     async def connect(self):
@@ -28,16 +29,21 @@ class ChatConsumer(AsyncWebsocketConsumer):
         if self.scope['user'].is_anonymous:
             return await self.close()
 
-        # Assign user to their channels
+        # # Assign user to their channels
         self.user_channel = f"user_{self.user.id}"
-        self.participating_channels = await self.get_participating_channels()
-        self.participating_channels.append(self.user_channel)
-        for channel in self.participating_channels:
-            await self.channel_layer.group_add(
-                f"{channel}",
-                self.channel_name
-            )
+        self.participating_channels = []
+        await self.channel_layer.group_add(
+            self.user_channel,
+            self.channel_name
+        )
 
+        # self.participating_channels = await self.get_participating_channels()
+        # for channel in self.participating_channels:
+        #     await self.channel_layer.group_add(
+        #         f"{channel}",
+        #         self.channel_name
+        #     )
+        
         await self.accept()
 
     async def disconnect(self, close_code):
@@ -129,6 +135,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         await self.send_message(channel_id=self.user_channel, message=message)
 
     async def send_message(self, channel_id, message: Union[dict, str]):
+
         if isinstance(message, dict):
             if not message.get("type"):
                 message["type"] = "message"
@@ -255,21 +262,22 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         await self.send_message(channel_id=str(data['channel_id']), message=message)
 
+    async def send_stuff(self,event):
+        data = event.get('data')
+        await self.send(text_data=json.dumps(data))
+
     # Allows user to add/remove channels without reconnecting, for e.g. joining and leaving a group
     async def connect_channel(self, data, disconnect=False):
-        class ConnectChannelInputSerializer(serializers.Serializer):
-            channel_id = serializers.IntegerField()
-
-        serializer = ConnectChannelInputSerializer(data=data)
-        serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data
+        
         channel_id = data.get('channel_id')
-
-        if not disconnect and channel_id in await self.get_participating_channels():
+        
+        #TODO: do a check if user can connect to channel
+        if not disconnect:
             await self.channel_layer.group_add(f"{channel_id}", self.channel_name)
             self.participating_channels.append(f"{channel_id}")
 
-        elif disconnect and channel_id in self.participating_channels:
+        #TODO: Do a check if user can disconnect from channel
+        elif disconnect:
             await self.channel_layer.group_discard(f"{channel_id}", self.channel_name)
 
         else:
