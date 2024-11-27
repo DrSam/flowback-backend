@@ -183,7 +183,7 @@ class GroupThread(BaseModel):
     created_by = models.ForeignKey(GroupUser, on_delete=models.CASCADE)
     title = models.CharField(max_length=200)
     pinned = models.BooleanField(default=False)
-    comment_section = models.ForeignKey(CommentSection, default=comment_section_create, on_delete=models.DO_NOTHING)
+    comment_section = models.ForeignKey(CommentSection, on_delete=models.DO_NOTHING)
     active = models.BooleanField(default=True)
     attachments = models.ForeignKey(FileCollection, on_delete=models.CASCADE, null=True, blank=True)
 
@@ -211,7 +211,6 @@ class GroupUserDelegatePool(BaseModel):
     group = models.ForeignKey(Group, on_delete=models.CASCADE)
     blockchain_id = models.PositiveIntegerField(null=True, blank=True, default=None)
     comment_section = models.ForeignKey(CommentSection,
-                                        default=comment_section_create_model_default,
                                         on_delete=models.CASCADE)
 
 
