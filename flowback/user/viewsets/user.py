@@ -82,7 +82,6 @@ class UserViewSet(
     )
     def change_password(self, request, *args, **kwargs):
         user = request.user
-        print(request.data)
         # Verify user by checking old password
         if not user.check_password(request.data.get('currentPassword')):
             return Response(

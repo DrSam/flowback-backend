@@ -9,6 +9,7 @@ from rest_framework.response import Response
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from rest_framework.permissions import BasePermission
+from nested_multipart_parser import NestedParser
 
 
 class FeedViewSetPermission(BasePermission):
@@ -51,15 +52,31 @@ class MessageViewSet(
         return channel_participant
 
     def create(self, request, *args, **kwargs):
+        parser = NestedParser(request.data)
+        if not parser.is_valid():
+            return Response(parser.errors,status.HTTP_200_OK)
+        
+        data = parser.validate_data
+        attachments = data.pop('attachments',[])
+        
+
         channel = self.get_channel()
         channel_participant = self.get_channel_participant()
+        parent_id = data.pop('parent_id',None)
 
-        serializer = self.get_serializer(data=request.data)
+        serializer = self.get_serializer(data=data)
         if not serializer.is_valid():
             return Response(serializer.errors,status.HTTP_400_BAD_REQUEST)
 
-        serializer.save(channel_participant_id=channel_participant.id)
+        message = serializer.save(channel_participant_id=channel_participant.id,parent_id=parent_id)
         
+        for attachment in attachments:
+            attachment['message'] = message.id
+        
+        attachment_serializer = feed_serializes.AttachmentSerializer(data=attachments,many=True)
+        if attachment_serializer.is_valid():
+            attachment_serializer.save()
+
         # Send notification to others
         channel_layer = get_channel_layer()
         async_to_sync(
@@ -77,6 +94,5 @@ class MessageViewSet(
                     }
             }
         )
-
 
         return Response(serializer.data,status.HTTP_200_OK)

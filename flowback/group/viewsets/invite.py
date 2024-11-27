@@ -19,6 +19,10 @@ from flowback.group import rules as group_rules
 import rules.predicates
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
+from feed.models import Channel
+from feed.fields import ChannelTypechoices
+from django.db.models import Q
+from flowback.group.utils import add_user_to_group
 
 class GroupUserInvitationViewSetPermission(BasePermission):
     def has_permission(self, request, view):
@@ -138,41 +142,8 @@ class GroupUserInvitationViewSet(
         group_invite.status = GroupUserInviteStatusChoices.ACCEPTED
         group_invite.save()
     
-        GroupUser.objects.update_or_create(
-            group=group_invite.group,
-            user=group_invite.user,
-            defaults={
-                'active':True
-            }
-        )
-
-        # Add user to group channels
-        for channel in group.feed_channels.all():
-            channel.participants.add(group_invite.user)
-
-        # Send notification to invite initiator
-        if not group_invite.initiator:
-            return Response("OK",status.HTTP_200_OK)
+        add_user_to_group(group_invite.group,group_invite.user)
         
-        channel_layer = get_channel_layer()
-        async_to_sync(
-            channel_layer.group_send
-        )(
-            f'user_{group_invite.initiator.id}',
-            {
-                'type':'send_stuff',
-                'data':{
-                    'type':'notification',
-                    'data':{
-                        'type':'accept_invite',
-                        'group_name':group.name,
-                        'group_id':group.id,
-                        'user_id':group_invite.user.id,
-                        'user_name':group_invite.user.get_full_name()
-                    }
-                }
-            }
-        )
         return Response("OK",status.HTTP_200_OK)
 
     @action(
@@ -307,13 +278,8 @@ class GroupUserInvitationViewSet(
         invite.status = GroupUserInviteStatusChoices.ACCEPTED
         invite.save()
 
-        GroupUser.objects.update_or_create(
-            user=invite.user,
-            group=invite.group,
-            defaults={
-                "active":True
-            }
-        )
+        add_user_to_group(invite.group,invite.user)
+
         return Response("OK",status.HTTP_200_OK)
 
     @action(

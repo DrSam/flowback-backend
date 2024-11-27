@@ -18,6 +18,8 @@ class GroupCreateSerializer(serializers.ModelSerializer):
 
 
 class BasicGroupUserSerializer(serializers.ModelSerializer):
+    user = BasicUserSerializer(required=False)
+    
     class Meta:
         model = GroupUser
         fields = "__all__"

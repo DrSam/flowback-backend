@@ -117,7 +117,8 @@ INSTALLED_APPS = [
     'flowback.schedule',
     'flowback.files',
     'feed',
-    'flowback.decidables',
+    'payments',
+    'flowback.decidables.apps.DecidablesConfig',
     'drf_spectacular',
     'django_q'
 ] + env('INTEGRATIONS')
