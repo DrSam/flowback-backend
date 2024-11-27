@@ -70,8 +70,6 @@ DEBUG = env('DEBUG')
 
 FLOWBACK_URL = env('FLOWBACK_URL')
 INSTANCE_NAME = env('INSTANCE_NAME')
-PG_SERVICE = env('PG_SERVICE')
-PG_PASS = env('PG_PASS')
 SITE_URL = env('SITE_URL')
 
 ALLOWED_HOSTS = [FLOWBACK_URL or "*"]
@@ -253,19 +251,13 @@ CHANNEL_LAYERS = {
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'OPTIONS': {
-            'service': PG_SERVICE,
-            'passfile': PG_PASS,
-        },
+        'NAME':env('DB_NAME'),
+        'USER':env('DB_USER'),
+        'PASSWORD':env('DB_PASS'),
+        'HOST':env('DB_HOST'),
+        'PORT':env('DB_PORT')
     }
 }
-
-if TESTING:
-    with (open(PG_PASS) as pgpass):
-        data = pgpass.readlines()[0].replace('\n', '').split(':')
-        DATABASES['default']['NAME'] = data[2]
-        DATABASES['default']['USER'] = data[3]
-        DATABASES['default']['PASSWORD'] = data[4]
 
 
 # Password validation

@@ -236,44 +236,6 @@ class Poll(BaseModel):
         if current_phase not in phases:
             raise ValidationError(f'Poll is not in {" or ".join(phases)}, currently in {current_phase}')
 
-    @classmethod
-    def pre_save(cls, instance, *args, **kwargs):
-        if not instance.pk:
-            instance.message_channel_topic = message_channel_topic_create(
-                channel_id=instance.created_by.group.chat_id,
-                topic_name=f"poll.{instance.id}",
-                hidden=True,
-            )
-
-    @classmethod
-    def post_save(cls, instance, created, update_fields, **kwargs):
-        if created:
-            instance.message_channel_topic.name = f"poll.{instance.id}"
-            instance.message_channel_topic.save()
-
-            if instance.poll_type == cls.PollType.SCHEDULE:
-                try:
-                    schedule = create_schedule(name='group_poll_schedule', origin_name='group_poll', origin_id=instance.id)
-                    schedule_poll = PollTypeSchedule(poll=instance, schedule=schedule)
-                    schedule_poll.full_clean()
-                    schedule_poll.save()
-
-                except Exception as e:
-                    instance.delete()
-                    raise Exception('Internal server error when creating poll' + f':\n{e}' if DEBUG else '')
-
-    @classmethod
-    def post_delete(cls, instance, **kwargs):
-        instance.message_channel_topic.delete()
-
-        if hasattr(instance, 'schedule'):
-            instance.schedule.delete()
-
-
-pre_save.connect(Poll.pre_save, sender=Poll)
-post_save.connect(Poll.post_save, sender=Poll)
-post_delete.connect(Poll.post_delete, sender=Poll)
-
 
 class PollTypeSchedule(BaseModel):
     poll = models.OneToOneField(Poll, on_delete=models.CASCADE)
@@ -312,13 +274,6 @@ class PollProposalTypeSchedule(BaseModel):
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=['proposal', 'event'], name='unique_proposaltypeschedule')]
-
-    @classmethod
-    def post_delete(cls, instance, **kwargs):
-        instance.event.delete()
-
-
-post_delete.connect(PollProposalTypeSchedule.post_delete, PollProposalTypeSchedule)
 
 
 class PollVoting(BaseModel):

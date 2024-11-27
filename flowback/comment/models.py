@@ -23,38 +23,9 @@ class Comment(BaseModel, TreeNode):
     active = models.BooleanField(default=True)
     score = models.DecimalField(default=0, max_digits=17, decimal_places=10)
 
-    # Updates score based on Wilson score interval when creating/deleting comment votes
-    @classmethod
-    def comment_score_update(cls, instance, *args, **kwargs):
-        comment = Comment.objects.filter(id=instance.comment.id
-                                         ).annotate(upvotes=Count('commentvote',
-                                                                  filter=Q(commentvote__vote=True)),
-                                                    downvotes=Count('commentvote',
-                                                                    filter=Q(commentvote__vote=False))
-                                                    ).first()
-
-        n = comment.upvotes + comment.downvotes
-
-        if n == 0 or comment.upvotes - comment.downvotes == 0:
-            return 0
-
-        z = 1.281551565545
-        p = float(comment.upvotes) / n
-
-        left = p + 1 / (2 * n) * z * z
-        right = z * sqrt(p * (1 - p) / n + z * z / (4 * n * n))
-        under = 1 + 1 / n * z * z
-
-        comment.score = (left - right) / under
-        comment.save()
-
     class Meta:
         constraints = [models.CheckConstraint(check=Q(attachments__isnull=False) | Q(message__isnull=False),
                                               name='temp_comment_data_check')]
-
-
-post_save.connect(Comment.comment_score_update, sender="comment.CommentVote")
-post_delete.connect(Comment.comment_score_update, sender="comment.CommentVote")
 
 
 class CommentVote(BaseModel):
