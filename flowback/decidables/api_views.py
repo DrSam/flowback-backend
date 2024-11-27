@@ -17,10 +17,21 @@ from django.db.models import Subquery, OuterRef
 from rest_framework.generics import get_object_or_404
 from django.db.models import Sum
 from flowback.decidables.fields import DecidableStateChoices
+from flowback.decidables.fields import DecidableTypeChoices
 from django.db.models import Case, When
 from django.db.models import IntegerField
 from nested_multipart_parser import NestedParser
-
+from django_q.tasks import async_task
+from flowback.decidables.fields import VoteTypeChoices
+from feed.models import Channel
+from feed.fields import ChannelTypechoices
+from django.db.models import Q
+from django.db.models import Value
+from flowback.decidables.tasks import update_decidable_votes
+from flowback.decidables.tasks import update_option_votes
+from flowback.decidables.tasks import after_decidable_confirm
+from flowback.decidables.tasks import after_decidable_create
+from flowback.decidables.tasks import after_option_create
 
 
 class DecidableViewSetPermission(BasePermission):
@@ -62,11 +73,8 @@ class DecidableViewSet(ModelViewSet):
         self._group = group
         return self._group
 
-    def get_queryset(self):
-        queryset = decidable_models.Decidable.objects.filter(
-            groups=self.get_group(),
-            root_decidable=None
-        ).annotate(
+    def annotate_queryset(self,queryset):
+        queryset = queryset.annotate(
             votes=Subquery(
                 decidable_models.GroupDecidableAccess.objects.filter(
                     group=self.get_group(),
@@ -84,12 +92,39 @@ class DecidableViewSet(ModelViewSet):
         )
         return queryset
 
-    def get_open_decidables_rank(self,main_queryset):
-        queryset = decidable_models.Decidable.objects.filter(
-            groups=self.get_group(),
-            state=DecidableStateChoices.OPEN,
-            root_decidable=None
-        ).annotate(
+    def get_queryset(self):
+        queryset = decidable_models.Decidable.objects.filter(groups=self.get_group())
+        if self.action not in  ['update','partial_update','confirm']:
+            queryset = queryset.filter(confirmed=True)
+        if (
+            'primary_decidable' not in self.request.query_params 
+            and
+            'parent_decidable' not in self.request.query_params
+            and
+            'parent_option' not in self.request.query_params
+            and not
+            self.detail
+        ):
+            queryset = queryset.filter(root_decidable__isnull=True)
+        return queryset
+
+    def get_decidables_rank(self,queryset):
+        # Get main queryset.
+        main_queryset = decidable_models.Decidable.objects.filter(groups=self.get_group())
+        if self.action not in  ['update','partial_update','confirm']:
+            main_queryset = main_queryset.filter(confirmed=True)
+        if 'primary_decidable' in self.request.query_params:
+            main_queryset = main_queryset.filter(primary_decidable=self.request.query_params.get('primary_decidable'))
+        elif 'parent_decidable' in self.request.query_params:
+            main_queryset = main_queryset.filter(parent_decidable=self.request.query_params.get('parent_decidable'))
+        elif 'parent_option' in self.request.query_params:
+            main_queryset = main_queryset.filter(parent_option=self.request.query_params.get('parent_option'))
+        else:
+            main_queryset = main_queryset.filter(root_decidable__isnull=True)
+
+        main_queryset = main_queryset.exclude(decidable_type='linkfile')
+
+        main_queryset = main_queryset.annotate(
             votes=Subquery(
                 decidable_models.GroupDecidableAccess.objects.filter(
                     group=self.get_group(),
@@ -97,25 +132,27 @@ class DecidableViewSet(ModelViewSet):
                 ).values('value')[:1]
             )
         ).values('id','votes')
-        votes = sorted(list(set([dec['votes'] for dec in queryset])),reverse=True)
+        votes = sorted(list(set([dec['votes'] for dec in main_queryset])),reverse=True)
         ranks = [(vote,rank+1) for rank,vote in enumerate(votes)]
         whens = [
             When(votes=k, then=v) for (k,v) in ranks
         ]
 
-        main_queryset = main_queryset.annotate(
+        queryset = queryset.annotate(
             poll_rank=Case(
                 *whens,
-                default=0,
+                default=999,
                 output_field=IntegerField()
-            )
+            ),
+            total_poll_count=Value(main_queryset.count())
         )
-        main_queryset = main_queryset.order_by('poll_rank')
-        return main_queryset
+        queryset = queryset.order_by('poll_rank')
+        return queryset
 
     def get_object(self):
         queryset = self.filter_queryset(self.get_queryset())
-        queryset = self.get_open_decidables_rank(queryset)
+        queryset = self.annotate_queryset(queryset)
+        queryset = self.get_decidables_rank(queryset)
         # Perform the lookup filtering.
         lookup_url_kwarg = self.lookup_url_kwarg or self.lookup_field
 
@@ -140,16 +177,20 @@ class DecidableViewSet(ModelViewSet):
         return context
 
     def get_serializer_class(self):
-        if self.action in ['create','confirm']:
+        if self.action in ['create','confirm','create_aspect']:
             return decidable_serializers.DecidableCreateSerializer
-        if not self.detail:
+        elif self.action in ['aspect']:
+            return decidable_serializers.DecidableListSerializer
+        elif not self.detail:
             return decidable_serializers.DecidableListSerializer
         else:
             return decidable_serializers.DecidableDetailSerializer
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
-        queryset = self.get_open_decidables_rank(queryset)
+        
+        queryset = self.annotate_queryset(queryset)
+        queryset = self.get_decidables_rank(queryset)
 
         page = self.paginate_queryset(queryset)
         if page is not None:
@@ -166,26 +207,26 @@ class DecidableViewSet(ModelViewSet):
 
         data = parser.validate_data
         attachments = data.pop('attachments',[])
-        print(attachments)
 
         serializer = self.get_serializer(data=data)
-        serializer.is_valid(raise_exception=True)
+        if not serializer.is_valid():
+            return Response(serializer.errors,status.HTTP_400_BAD_REQUEST)
         group_user = GroupUser.objects.filter(
             user=request.user,
-            group_id=request.data.get('group')
+            group=self.get_group()
         ).first()
         decidable = serializer.save(created_by=group_user)
-        
         decidable.groups.add(self.get_group())
 
         for attachment in attachments:
             attachment['decidable'] = decidable.id
 
-        
         attachment_serializer = decidable_serializers.AttachmentCreateSerializer(data=attachments,many=True)
         if attachment_serializer.is_valid():
             attachment_serializer.save()
-        
+
+        after_decidable_create(decidable.id)
+
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     @action(
@@ -196,9 +237,10 @@ class DecidableViewSet(ModelViewSet):
         decidable = self.get_object()
         decidable.confirmed = True
         decidable.save()
+        decidable.fsm.start_poll(user=request.user)
+        decidable.save()
 
-
-
+        after_decidable_confirm(decidable.id)
         
         return Response("OK",status.HTTP_200_OK)
     
@@ -221,32 +263,15 @@ class DecidableViewSet(ModelViewSet):
         if request.data.get('vote',None) is None:
             return Response("Vote not submitted",status.HTTP_400_BAD_REQUEST)
         
-        # Get groups with access to decidable, that the user is a part of
-        group_decidable_accesses = decidable.group_decidable_access.filter(
-            group__groupuser__user=request.user,
-            group__groupuser__active=True
+        update_decidable_votes(
+            decidable.id,
+            request.user.id,
+            request.data.get('vote')
         )
 
-        # Set the user's vote for all of the above groups with the current vote
-        for group_decidable_access in group_decidable_accesses:
-            group_user = group_decidable_access.group.groupuser_set.get(
-                user=request.user,
-                active=True
-            )
-            decidable_models.GroupUserDecidableVote.objects.update_or_create(
-                group_decidable_access=group_decidable_access,
-                group_user=group_user,
-                defaults={
-                    'value':request.data.get('vote')
-                }
-            )
-
-        # For each group, update votes
-        for group_decidable_access in group_decidable_accesses:
-            group_decidable_access.value = group_decidable_access.group_user_decidable_vote.aggregate(Sum('value'))['value__sum'] or 0
-            group_decidable_access.save()
-
-        return Response("OK",status.HTTP_200_OK)
+        decidable = self.get_object()
+        serializer = self.get_serializer(instance=decidable)
+        return Response(serializer.data,status.HTTP_200_OK)
 
     @action(
         detail=True,
@@ -305,26 +330,72 @@ class OptionViewSet(
     def get_queryset(self):
         queryset = decidable_models.Option.objects.filter(
             decidables=self.get_decidable()
-        ).annotate(
+        )
+
+        return queryset
+
+    def annotate_queryset(self, queryset):
+        queryset = queryset.annotate(
             votes=Subquery(
                 decidable_models.GroupDecidableOptionAccess.objects.filter(
                     group=self.get_group(),
-                    decidable_option__option__id=OuterRef('id'),
-                    decidable_option__decidable=self.get_decidable()
+                    decidable_option__decidable_id=self.get_decidable().id,
+                    decidable_option__option_id=OuterRef('id')
                 ).values('value')[:1]
+            ),
+            quorum=Subquery(
+                decidable_models.GroupDecidableOptionAccess.objects.filter(
+                    group=self.get_group(),
+                    decidable_option__decidable_id=self.get_decidable().id,
+                    decidable_option__option_id=OuterRef('id')
+                ).values('quorum')[:1]
+            ),
+            approval=Subquery(
+                decidable_models.GroupDecidableOptionAccess.objects.filter(
+                    group=self.get_group(),
+                    decidable_option__decidable_id=self.get_decidable().id,
+                    decidable_option__option_id=OuterRef('id')
+                ).values('approval')[:1]
             ),
             user_vote=Subquery(
                 decidable_models.GroupUserDecidableOptionVote.objects.filter(
                     group_decidable_option_access__group=self.get_group(),
+                    group_decidable_option_access__decidable_option__decidable_id=self.get_decidable().id,
                     group_decidable_option_access__decidable_option__option_id=OuterRef('id'),
-                    group_decidable_option_access__decidable_option__decidable=self.get_decidable(),
                     group_user__group=self.get_group(),
                     group_user__user=self.request.user
                 ).values('value')[:1]
             )
         )
-
         return queryset
+    
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['group'] = self.get_group()
+        context['decidable'] = self.get_decidable()
+        return context
+
+    def get_object(self):
+        queryset = self.filter_queryset(self.get_queryset())
+        queryset = self.annotate_queryset(queryset)
+        queryset = self.get_options_rank(queryset)
+        # Perform the lookup filtering.
+        lookup_url_kwarg = self.lookup_url_kwarg or self.lookup_field
+
+        assert lookup_url_kwarg in self.kwargs, (
+            'Expected view %s to be called with a URL keyword argument '
+            'named "%s". Fix your URL conf, or set the `.lookup_field` '
+            'attribute on the view correctly.' %
+            (self.__class__.__name__, lookup_url_kwarg)
+        )
+
+        filter_kwargs = {self.lookup_field: self.kwargs[lookup_url_kwarg]}
+        obj = get_object_or_404(queryset, **filter_kwargs)
+
+        # May raise a permission denied
+        self.check_object_permissions(self.request, obj)
+
+        return obj
 
     def get_group(self):
         if self._group:
@@ -367,7 +438,8 @@ class OptionViewSet(
                 *whens,
                 default=0,
                 output_field=IntegerField()
-            )
+            ),
+            total_option_count = Value(queryset.count())
         )
         main_queryset = main_queryset.order_by('option_rank')
         return main_queryset
@@ -382,6 +454,7 @@ class OptionViewSet(
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
+        queryset = self.annotate_queryset(queryset)
         queryset = self.get_options_rank(queryset)
 
         page = self.paginate_queryset(queryset)
@@ -393,25 +466,37 @@ class OptionViewSet(
         return Response(serializer.data)
 
     def create(self, request, *args, **kwargs):
+        decidable = self.get_decidable()
+
+        if decidable.decidable_type == 'aspect':
+            raise Exception('Cannot add an option')
+
         parser = NestedParser(request.data)
         if not parser.is_valid():
             return Response(parser.errors,status.HTTP_200_OK)
 
         data = parser.validate_data
         attachments = data.pop('attachments',[])
+        tags = data.pop('tags',[])
 
         serializer = self.get_serializer(data=data)
-        serializer.is_valid(raise_exception=True)
-        option = serializer.save()
-        option.decidables.add(self.get_decidable())
+        if not serializer.is_valid():
+            return Response(serializer.errors,status.HTTP_400_BAD_REQUEST)
+        option = serializer.save(
+            root_decidable = decidable.get_root_decidable()
+        )
+        option.decidables.add(decidable)
 
-        # Add group
+        # Add tags, and later whatever we need for the decidable_option
         decidable_option = decidable_models.DecidableOption.objects.get(
             decidable = self.get_decidable(),
             option = option
         )
-        decidable_option.groups.add(self.get_group())
+        if len(tags)>0:
+            decidable_option.tags = tags
+            decidable_option.save()
 
+    
         # Add attachments
         for attachment in attachments:
             attachment['option'] = option.id
@@ -421,8 +506,16 @@ class OptionViewSet(
         if attachment_serializer.is_valid():
             attachment_serializer.save()
 
-        print(serializer.data)
-            
+        # Add group
+        for group in decidable.get_root_decidable().groups.all():
+            decidable_option = decidable_models.DecidableOption.objects.get(
+                decidable = self.get_decidable(),
+                option = option
+            )
+            decidable_option.groups.add(group)
+
+        if decidable.get_root_decidable().confirmed:
+            after_option_create(option.id,decidable.id)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     @action(
@@ -432,38 +525,48 @@ class OptionViewSet(
     def vote(self, request, *args, **kwargs):
         option = self.get_object()
         decidable = self.get_decidable()
-        group = self.get_group()
 
         value = request.data.get('vote')
         if value is None:
             return Response("Vote missing",status.HTTP_400_BAD_REQUEST)
         
-        decidable_option = option.decidable_option.filter(
-            decidable = decidable
-        ).first()
-        # Get groups with access to option, that the user is a part of
-        group_decidable_option_accesses = decidable_option.group_decidable_option_access.filter(
-            group__groupuser__user=request.user,
-            group__groupuser__active=True
+        #TODO: Move to async later
+        update_option_votes(
+            decidable.id,
+            option.id,
+            request.user.id,
+            request.data.get('vote')
         )
 
-        # Set the user's vote for all of the above groups with the current vote
-        for group_decidable_option_access in group_decidable_option_accesses:
-            group_user = group_decidable_option_access.group.groupuser_set.get(
-                user=request.user,
-                active=True
-            )
-            decidable_models.GroupUserDecidableOptionVote.objects.update_or_create(
-                group_decidable_option_access=group_decidable_option_access,
-                group_user=group_user,
-                defaults={
-                    'value':request.data.get('vote')
-                }
-            )
+        option = self.get_object()
+        serializer = self.get_serializer(instance=option)
+        return Response(serializer.data,status.HTTP_200_OK)
 
-        # For each group, update votes
-        for group_decidable_option_access in group_decidable_option_accesses:
-            group_decidable_option_access.value = group_decidable_option_access.group_user_decidable_option_vote.aggregate(Sum('value'))['value__sum'] or 0
-            group_decidable_option_access.save()
-
-        return Response("OK",status.HTTP_200_OK)
+    @action(
+        detail=False,
+        methods=['GET']
+    )
+    def results(self, request, *args, **kwargs):
+        decidable = self.get_decidable()
+        data = {
+            'labels':['Memphis','Nashville','Knoxville'],
+            'datasets':[{
+                'label':'Poll results',
+                'data':[20,50,30],
+                'backgroundColor': [
+                    'rgba(98,  182, 239,0.5)',
+                    'rgba(98,  182, 239,0.5)',
+                    'rgba(98,  182, 239,0.5)',
+                ],
+                'borderWidth': 2,
+                'borderColor': [
+                    'rgba(98,  182, 239, 1)',
+                    'rgba(98,  182, 239, 1)',
+                    'rgba(98,  182, 239, 1)',
+                ],
+            }
+            ]
+        }  
+    
+        return Response(data,status.HTTP_200_OK)
+    

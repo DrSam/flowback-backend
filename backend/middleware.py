@@ -2,13 +2,18 @@ from django.contrib.auth.models import AnonymousUser
 from rest_framework.authtoken.models import Token
 from channels.db import database_sync_to_async
 from channels.middleware import BaseMiddleware
-
+from rest_framework_simplejwt.tokens import UntypedToken
+from rest_framework_simplejwt.authentication import JWTAuthentication
 
 @database_sync_to_async
 def get_user(token_key):
     try:
-        token = Token.objects.get(key=token_key)
-        return token.user
+        validated_token = UntypedToken(token_key)
+        jwt_auth = JWTAuthentication()
+        user = jwt_auth.get_user(validated_token)
+        if user is not None:
+            return user
+        return AnonymousUser()
     except Token.DoesNotExist:
         return AnonymousUser()
 

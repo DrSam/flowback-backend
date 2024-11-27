@@ -6,7 +6,10 @@ from flowback.group.models import GroupUserInvite
 from flowback.group.models import Group
 from flowback.group.serializers import GroupUserInviteSerializer
 from rest_framework.decorators import action
+from rest_framework.decorators import api_view
+from rest_framework.decorators import permission_classes
 from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 from flowback.user.models import User
 from flowback.group.fields import GroupUserInviteStatusChoices
@@ -14,7 +17,12 @@ from flowback.group.models import GroupUser
 from flowback.group.filters import GroupUserInviteFilter
 from flowback.group import rules as group_rules
 import rules.predicates
-
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
+from feed.models import Channel
+from feed.fields import ChannelTypechoices
+from django.db.models import Q
+from flowback.group.utils import add_user_to_group
 
 class GroupUserInvitationViewSetPermission(BasePermission):
     def has_permission(self, request, view):
@@ -85,8 +93,32 @@ class GroupUserInvitationViewSet(
             GroupUserInvite.objects.create(
                 user=user,
                 group=group,
-                external=False
+                external=False,
+                initiator=request.user
             )
+
+        # Send notification to invited person
+        channel_layer = get_channel_layer()
+        for user_id in request.data.get('user_ids',[]):
+            async_to_sync(
+                channel_layer.group_send
+            )(
+                f'user_{user_id}',
+                {
+                    'type':'send_stuff',
+                    'data':{
+                        'type':'notification',
+                        'data':{
+                            'type':'send_invite',
+                            'group_name':group.name,
+                            'group_id':group.id,
+                            'initiator':request.user.get_full_name()
+                        }
+                    }
+                }
+            )
+        
+
         return Response("OK",status.HTTP_200_OK)
     
     @action(
@@ -95,6 +127,8 @@ class GroupUserInvitationViewSet(
         url_path='accept-invite'
     )
     def accept_invite(self, request, *args, **kwargs):
+        group = self.get_group()
+
         group_invite = GroupUserInvite.objects.filter(
             group=self.get_group(),
             user=request.user,
@@ -108,13 +142,8 @@ class GroupUserInvitationViewSet(
         group_invite.status = GroupUserInviteStatusChoices.ACCEPTED
         group_invite.save()
     
-        GroupUser.objects.update_or_create(
-            group=group_invite.group,
-            user=group_invite.user,
-            defaults={
-                'active':True
-            }
-        )
+        add_user_to_group(group_invite.group,group_invite.user)
+        
         return Response("OK",status.HTTP_200_OK)
 
     @action(
@@ -123,6 +152,7 @@ class GroupUserInvitationViewSet(
         url_path='reject-invite'
     )
     def reject_invite(self, request, *args, **kwargs):
+        group = self.get_group()
         group_invite = GroupUserInvite.objects.filter(
             group=self.get_group(),
             user=request.user,
@@ -136,7 +166,33 @@ class GroupUserInvitationViewSet(
         # Reject invitation
         group_invite.status = GroupUserInviteStatusChoices.REJECTED
         group_invite.save()
+
+        if not group_invite.initiator:
+            print('no initiator found')
+            return Response("OK",status.HTTP_200_OK)
+
+        channel_layer = get_channel_layer()
+        async_to_sync(
+            channel_layer.group_send
+        )(
+            f'user_{group_invite.initiator.id}',
+            {
+                'type':'send_stuff',
+                'data':{
+                    'type':'notification',
+                    'data':{
+                        'type':'reject_invite',
+                        'group_name':group.name,
+                        'group_id':group.id,
+                        'user_id':group_invite.user.id,
+                        'user_name':group_invite.user.get_full_name()
+                    }
+                }
+            }
+        )
+
         return Response("OK",status.HTTP_200_OK)
+
 
     @action(
         detail=True,
@@ -144,6 +200,7 @@ class GroupUserInvitationViewSet(
         url_path='withdraw-invite'
     )
     def withdraw_invite(self, request, *args, **kwargs):
+        group = self.get_group()
         group_invite = self.get_object()
         
         if group_invite.status!=GroupUserInviteStatusChoices.PENDING:
@@ -152,6 +209,25 @@ class GroupUserInvitationViewSet(
         # Withdraw invitation
         group_invite.status = GroupUserInviteStatusChoices.WITHDRAWN
         group_invite.save()
+
+        channel_layer = get_channel_layer()
+        async_to_sync(
+            channel_layer.group_send
+        )(
+            f'user_{group_invite.user.id}',
+            {
+                'type':'send_stuff',
+                'data':{
+                    'type':'notification',
+                    'data':{
+                        'type':'withdraw_invite',
+                        'group_name':group.name,
+                        'group_id':group.id,
+                        'initiator':request.user.get_full_name()
+                    }
+                }
+            }
+        )
         return Response("OK",status.HTTP_200_OK)
     
     @action(
@@ -202,13 +278,8 @@ class GroupUserInvitationViewSet(
         invite.status = GroupUserInviteStatusChoices.ACCEPTED
         invite.save()
 
-        GroupUser.objects.update_or_create(
-            user=invite.user,
-            group=invite.group,
-            defaults={
-                "active":True
-            }
-        )
+        add_user_to_group(invite.group,invite.user)
+
         return Response("OK",status.HTTP_200_OK)
 
     @action(
@@ -227,3 +298,15 @@ class GroupUserInvitationViewSet(
         invite.save()
         
         return Response("OK",status.HTTP_200_OK)
+
+
+@api_view(http_method_names=['GET'])
+@permission_classes([IsAuthenticated])
+def my_invites(request):
+    group_invites = GroupUserInvite.objects.filter(
+        user=request.user,
+        status=GroupUserInviteStatusChoices.PENDING,
+        external=False,
+    )
+    serializer = GroupUserInviteSerializer(group_invites,many=True)
+    return Response(serializer.data,status.HTTP_200_OK)

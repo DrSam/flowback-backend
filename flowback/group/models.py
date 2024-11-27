@@ -59,7 +59,7 @@ class Group(BaseModel):
     default_finalization_period = models.PositiveIntegerField(default=3,validators=[MinValueValidator(1), MaxValueValidator(30)],)
     schedule = models.ForeignKey(Schedule, null=True, blank=True, on_delete=models.PROTECT)
     kanban = models.ForeignKey(Kanban, null=True, blank=True, on_delete=models.PROTECT)
-    chat = models.ForeignKey(MessageChannel, on_delete=models.PROTECT)
+    chat = models.ForeignKey(MessageChannel, on_delete=models.PROTECT,null=True,blank=True)
     group_folder = models.ForeignKey(GroupFolder, null=True, blank=True, on_delete=models.SET_NULL)
     blockchain_id = models.PositiveIntegerField(null=True, blank=True)
 
@@ -72,48 +72,18 @@ class Group(BaseModel):
     def __str__(self):
         return self.name
 
-    @classmethod
-    def pre_save(cls, instance, raw, using, update_fields, *args, **kwargs):
-        if instance.pk is None:
-            instance.chat = message_channel_create(origin_name='group')
 
-    @classmethod
-    def post_save(cls, instance, created, update_fields, *args, **kwargs):
-        if created:
-            instance.schedule = create_schedule(name=instance.name, origin_name='group', origin_id=instance.id)
-            instance.kanban = kanban_create(name=instance.name, origin_type='group', origin_id=instance.id)
-            instance.save()
+class Topic(BaseModel):
+    group = models.ForeignKey(
+        Group,
+        related_name='topics',
+        on_delete=models.CASCADE
+    )
+    name = models.CharField(max_length=256)
+    description = models.TextField(blank=True, default='')
 
-        if update_fields:
-            if not all(isinstance(field, str) for field in update_fields):
-                update_fields = [field.name for field in update_fields]
-
-            if 'name' in update_fields:
-                instance.schedule.name = instance.name
-                instance.kanban.name = instance.name
-                instance.schedule.save()
-                instance.kanban.save()
-
-    @classmethod
-    def user_post_save(cls, instance: User, created: bool, *args, **kwargs):
-        if created and FLOWBACK_DEFAULT_GROUP_JOIN:
-            for group_id in FLOWBACK_DEFAULT_GROUP_JOIN:
-                if get_object(Group, id=group_id, raise_exception=False):
-                    group_user = GroupUser(user=instance, group_id=group_id)
-                    # TODO FIX pre_save check group_user.full_clean()
-                    group_user.save()
-
-    @classmethod
-    def post_delete(cls, instance, *args, **kwargs):
-        instance.schedule.delete()
-        instance.kanban.delete()
-        instance.chat.delete()
-
-
-pre_save.connect(Group.pre_save, sender=Group)
-post_save.connect(Group.post_save, sender=Group)
-post_save.connect(Group.user_post_save, sender=User)
-post_delete.connect(Group.post_delete, sender=Group)
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['group', 'name'], name='group_unique_topics')]
 
 
 # Permission class for each Group
@@ -171,8 +141,11 @@ class GroupUser(BaseModel):
     group = models.ForeignKey(Group, on_delete=models.CASCADE)
     is_admin = models.BooleanField(default=False)
     permission = models.ForeignKey(GroupPermissions, null=True, blank=True, on_delete=models.SET_NULL)
-    chat_participant = models.ForeignKey(MessageChannelParticipant, on_delete=models.PROTECT)
+    chat_participant = models.ForeignKey(MessageChannelParticipant, on_delete=models.PROTECT,null=True,blank=True)
     active = models.BooleanField(default=True)
+
+    def __str__(self):
+        return f'({self.group} - {self.user})'
 
 
     # Check if every permission in a dict is matched correctly
@@ -201,34 +174,8 @@ class GroupUser(BaseModel):
 
         return True
 
-    @classmethod
-    def pre_save(cls, instance, raw, using, update_fields, *args, **kwargs):
-        if instance.pk is None:
-            # Joins the chatroom associated with the poll
-            instance.chat_participant = message_channel_join(user_id=instance.user_id,
-                                                             channel_id=instance.group.chat_id)
-
-    @classmethod
-    def post_save(cls, instance, created, update_fields, *args, **kwargs):
-        if created:
-            kanban_subscription_create(kanban_id=instance.user.kanban_id,
-                                       target_id=instance.group.kanban_id)
-            instance.save()
-            return
-
-    @classmethod
-    def post_delete(cls, instance, *args, **kwargs):
-        kanban_subscription_delete(kanban_id=instance.user.kanban_id,
-                                   target_id=instance.group.kanban_id)
-        instance.chat_participant.delete()
-
     class Meta:
         unique_together = ('user', 'group')
-
-
-pre_save.connect(GroupUser.pre_save, sender=GroupUser)
-post_save.connect(GroupUser.post_save, sender=GroupUser)
-post_delete.connect(GroupUser.post_delete, sender=GroupUser)
 
 
 # GroupThreads are mainly used for creating comment sections for various topics
@@ -236,7 +183,7 @@ class GroupThread(BaseModel):
     created_by = models.ForeignKey(GroupUser, on_delete=models.CASCADE)
     title = models.CharField(max_length=200)
     pinned = models.BooleanField(default=False)
-    comment_section = models.ForeignKey(CommentSection, default=comment_section_create, on_delete=models.DO_NOTHING)
+    comment_section = models.ForeignKey(CommentSection, on_delete=models.DO_NOTHING)
     active = models.BooleanField(default=True)
     attachments = models.ForeignKey(FileCollection, on_delete=models.CASCADE, null=True, blank=True)
 
@@ -249,6 +196,13 @@ class GroupUserInvite(BaseModel):
         choices=GroupUserInviteStatusChoices.choices,
         default=GroupUserInviteStatusChoices.PENDING
     )
+    initiator = models.ForeignKey(
+        User,
+        related_name='sent_invites', 
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True
+    )
 
 
 # A pool containing multiple delegates
@@ -257,7 +211,6 @@ class GroupUserDelegatePool(BaseModel):
     group = models.ForeignKey(Group, on_delete=models.CASCADE)
     blockchain_id = models.PositiveIntegerField(null=True, blank=True, default=None)
     comment_section = models.ForeignKey(CommentSection,
-                                        default=comment_section_create_model_default,
                                         on_delete=models.CASCADE)
 
 

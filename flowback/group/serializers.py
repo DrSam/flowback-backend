@@ -18,6 +18,8 @@ class GroupCreateSerializer(serializers.ModelSerializer):
 
 
 class BasicGroupUserSerializer(serializers.ModelSerializer):
+    user = BasicUserSerializer(required=False)
+    
     class Meta:
         model = GroupUser
         fields = "__all__"
@@ -32,6 +34,11 @@ class GroupSerializer(serializers.ModelSerializer):
     member_count = serializers.IntegerField()
     admin_count = serializers.IntegerField()
     open_poll_count = serializers.IntegerField()
+    feed_channels = serializers.SerializerMethodField()
+
+    def get_feed_channels(self,obj):
+        channels = obj.feed_channels.all()
+        return channels.values()
 
     def get_is_member(self,obj):
         if bool(getattr(obj,'is_member')):

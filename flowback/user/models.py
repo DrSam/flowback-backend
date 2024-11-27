@@ -88,40 +88,12 @@ class User(AbstractBaseUser, PermissionsMixin):
     def message_channel_origin(self) -> str:
         return "user"
 
-    @classmethod
-    # Updates Schedule name
-    def post_save(cls, instance, created, update_fields, **kwargs):
-        if created:
-            instance.kanban = kanban_create(name=instance.username, origin_type='user', origin_id=instance.id)
-            instance.schedule = create_schedule(name=instance.username, origin_name='user', origin_id=instance.id)
-            instance.save()
-            return
-
-        if not update_fields:
-            return
-
-        fields = [str(field) for field in update_fields]
-        if 'name' in fields:
-            instance.schedule.name = instance.name
-            instance.kanban.name = instance.name
-            instance.kanban.save()
-            instance.schedule.save()
-
-    @classmethod
-    def post_delete(cls, instance, **kwargs):
-        instance.kanban.delete()
-        instance.schedule.delete()
-
     def get_full_name(self):
         """
         Return the first_name plus the last_name, with a space in between.
         """
         full_name = "%s %s" % (self.first_name, self.last_name)
         return full_name.strip()
-
-
-post_save.connect(User.post_save, sender=User)
-post_delete.connect(User.post_delete, sender=User)
 
 
 class OnboardUser(BaseModel):

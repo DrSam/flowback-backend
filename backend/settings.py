@@ -70,8 +70,6 @@ DEBUG = env('DEBUG')
 
 FLOWBACK_URL = env('FLOWBACK_URL')
 INSTANCE_NAME = env('INSTANCE_NAME')
-PG_SERVICE = env('PG_SERVICE')
-PG_PASS = env('PG_PASS')
 SITE_URL = env('SITE_URL')
 
 ALLOWED_HOSTS = [FLOWBACK_URL or "*"]
@@ -116,7 +114,9 @@ INSTALLED_APPS = [
     'flowback.comment',
     'flowback.schedule',
     'flowback.files',
-    'flowback.decidables',
+    'feed',
+    'payments',
+    'flowback.decidables.apps.DecidablesConfig',
     'drf_spectacular',
     'django_q'
 ] + env('INTEGRATIONS')
@@ -235,12 +235,13 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 
 ASGI_APPLICATION = "backend.asgi.application"
 
+# "channels_redis.core.RedisChannelLayer"
+# "CONFIG": {
+#             "hosts": [(env('REDIS_IP'), env('REDIS_PORT'))],
+#         },
 CHANNEL_LAYERS = {
     "default": {
-        "BACKEND": "channels_redis.core.RedisChannelLayer",
-        "CONFIG": {
-            "hosts": [(env('REDIS_IP'), env('REDIS_PORT'))],
-        },
+        "BACKEND": "channels.layers.InMemoryChannelLayer"  
     },
 }
 
@@ -251,19 +252,13 @@ CHANNEL_LAYERS = {
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'OPTIONS': {
-            'service': PG_SERVICE,
-            'passfile': PG_PASS,
-        },
+        'NAME':env('DB_NAME'),
+        'USER':env('DB_USER'),
+        'PASSWORD':env('DB_PASS'),
+        'HOST':env('DB_HOST'),
+        'PORT':env('DB_PORT')
     }
 }
-
-if TESTING:
-    with (open(PG_PASS) as pgpass):
-        data = pgpass.readlines()[0].replace('\n', '').split(':')
-        DATABASES['default']['NAME'] = data[2]
-        DATABASES['default']['USER'] = data[3]
-        DATABASES['default']['PASSWORD'] = data[4]
 
 
 # Password validation
@@ -355,10 +350,10 @@ SIMPLE_JWT = {
 # Django Q settings
 Q_CLUSTER = {
     'name':'Forby',
-    'workers':2,
+    'workers':1,
     'recycle':50,
     'orm':'default',
-    'poll':5,
     'retry':120,
-    'timeout':60
+    'timeout':60,
+    'sync':False
 }

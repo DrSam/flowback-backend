@@ -2,7 +2,6 @@ from django.db import models
 from django_extensions.db.models import TimeStampedModel
 from .fields import DecidableTypeChoices
 from .fields import VoteTypeChoices
-from .fields import VoteAggChoices
 from .fields import AttachmentChoices
 from django.core.validators import MinValueValidator, MaxValueValidator
 from flowback.decidables.validators import allowed_image_extensions
@@ -53,6 +52,14 @@ class Decidable(TimeStampedModel,TitleDescriptionModel):
         blank=True
     )
 
+    topic = models.ForeignKey(
+        'group.Topic',
+        related_name='decidables',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True
+    )
+
     # Parents, for nested decidables
     parent_decidable = models.ForeignKey(
         'self',
@@ -92,9 +99,14 @@ class Decidable(TimeStampedModel,TitleDescriptionModel):
         null=True,
         blank=True
     )
+
+    @property
+    def is_root_decidable(self):
+        return not bool(self.root_decidable)
     
     # Depending on deciable type, code logic will be required to setup decidable properly
     decidable_type = models.CharField(max_length=256,choices=DecidableTypeChoices.choices)
+    voting_type = models.CharField(max_length=64, choices=VoteTypeChoices.choices,default=VoteTypeChoices.RATING)
 
     # Tags may be required when entering an option
     tags = models.JSONField(blank=True,default=list)
@@ -109,12 +121,17 @@ class Decidable(TimeStampedModel,TitleDescriptionModel):
         validators=[MinValueValidator(1), MaxValueValidator(30)],
         help_text='Finalization period in days'
     )
+    has_winners = models.BooleanField(default=False,blank=True)
+    num_winners = models.IntegerField(null=True,blank=True)
 
     # Decidable options
     active = models.BooleanField(default=False)
     public = models.BooleanField(default=False)
     end_date = models.DateField(null=True,blank=True)
     confirmed = models.BooleanField(default=False)
+
+    def get_root_decidable(self):
+        return self.root_decidable or self
 
     def __str__(self):
         return self.title
@@ -139,10 +156,13 @@ class GroupDecidableOptionAccess(TimeStampedModel):
         through='decidables.GroupUserDecidableOptionVote'
     )
 
+    quorum = models.IntegerField(default=0,blank=True)
+    approval = models.IntegerField(default=0,blank=True)
+
     def __str__(self):
         return f'{self.decidable_option} - {self.group}'
 
-    
+
 class DecidableOption(TimeStampedModel):
     decidable = models.ForeignKey(
         'decidables.Decidable',
@@ -181,6 +201,7 @@ class Option(TimeStampedModel,TitleDescriptionModel):
         null=True,
         blank=True
     )
+    
 
     def __str__(self):
         return self.title
@@ -213,7 +234,7 @@ class Attachment(models.Model):
         null=True,
         blank=True
     )
-    link = models.URLField(blank=True,default='')
+    link = models.CharField(max_length=512,blank=True,default='')
     file = models.FileField(null=True,blank=True)
     image = models.ImageField(null=True,blank=True, validators=[allowed_image_extensions])
 
@@ -246,6 +267,9 @@ class GroupUserDecidableOptionVote(TimeStampedModel):
         on_delete=models.CASCADE
     )
     value = models.IntegerField(default=0)
+
+    def __str__(self):
+        return f'{self.group_decidable_option_access} - {self.group_user}: {self.value}'
 
  
 
