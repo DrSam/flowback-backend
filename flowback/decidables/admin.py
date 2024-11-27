@@ -5,7 +5,8 @@ from flowback.decidables.models import Attachment
 from flowback.decidables.models import Option
 from flowback.decidables.models import DecidableOption
 from flowback.decidables.models import GroupDecidableOptionAccess
-# from flowback.decidables.models import GroupDecidableAccess
+from flowback.decidables.models import GroupUserDecidableVote
+from flowback.decidables.models import GroupUserDecidableOptionVote
 
 admin.site.register(Attachment)
 admin.site.register(Decidable)
@@ -13,3 +14,5 @@ admin.site.register(GroupDecidableAccess)
 admin.site.register(GroupDecidableOptionAccess)
 admin.site.register(DecidableOption)
 admin.site.register(Option)
+admin.site.register(GroupUserDecidableVote)
+admin.site.register(GroupUserDecidableOptionVote)

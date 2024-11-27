@@ -2,7 +2,6 @@ from django.db import models
 from django_extensions.db.models import TimeStampedModel
 from .fields import DecidableTypeChoices
 from .fields import VoteTypeChoices
-from .fields import VoteAggChoices
 from .fields import AttachmentChoices
 from django.core.validators import MinValueValidator, MaxValueValidator
 from flowback.decidables.validators import allowed_image_extensions
@@ -77,16 +76,6 @@ class Decidable(TimeStampedModel,TitleDescriptionModel):
         blank=True
     )
 
-    # When the decidable is a reasons poll for an option
-    # To simplify a query every time we need to pull it up
-    reason_option = models.OneToOneField(
-        'decidables.Option',
-        related_name='reason_decidable',
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True
-    )
-
     is_container = models.BooleanField(default=False)
 
     created_by = models.ForeignKey(
@@ -111,8 +100,9 @@ class Decidable(TimeStampedModel,TitleDescriptionModel):
         blank=True
     )
 
-    def get_root_decidable(self):
-        return self.root_decidable or self
+    @property
+    def is_root_decidable(self):
+        return not bool(self.root_decidable)
     
     # Depending on deciable type, code logic will be required to setup decidable properly
     decidable_type = models.CharField(max_length=256,choices=DecidableTypeChoices.choices)
@@ -140,9 +130,10 @@ class Decidable(TimeStampedModel,TitleDescriptionModel):
     end_date = models.DateField(null=True,blank=True)
     confirmed = models.BooleanField(default=False)
 
+    def get_root_decidable(self):
+        return self.root_decidable or self
+
     def __str__(self):
-        if self.decidable_type==DecidableTypeChoices.REASONPOLL and self.reason_option:
-            return f'Reason poll for: {self.reason_option.title}'
         return self.title
 
 
@@ -164,6 +155,9 @@ class GroupDecidableOptionAccess(TimeStampedModel):
         'group.GroupUser',
         through='decidables.GroupUserDecidableOptionVote'
     )
+
+    quorum = models.IntegerField(default=0,blank=True)
+    approval = models.IntegerField(default=0,blank=True)
 
     def __str__(self):
         return f'{self.decidable_option} - {self.group}'
@@ -240,7 +234,7 @@ class Attachment(models.Model):
         null=True,
         blank=True
     )
-    link = models.URLField(blank=True,default='')
+    link = models.CharField(max_length=512,blank=True,default='')
     file = models.FileField(null=True,blank=True)
     image = models.ImageField(null=True,blank=True, validators=[allowed_image_extensions])
 
@@ -273,6 +267,9 @@ class GroupUserDecidableOptionVote(TimeStampedModel):
         on_delete=models.CASCADE
     )
     value = models.IntegerField(default=0)
+
+    def __str__(self):
+        return f'{self.group_decidable_option_access} - {self.group_user}: {self.value}'
 
  
 

@@ -7,6 +7,8 @@ from tree_queries.models import TreeNode
 from flowback.common.models import BaseModel
 from flowback.user.models import User
 from feed.fields import ChannelTypechoices
+from .fields import AttachmentChoices
+from flowback.decidables.validators import allowed_image_extensions
 
 
 class Channel(BaseModel):
@@ -81,6 +83,9 @@ class ChannelParticipant(BaseModel):
     )
     active = models.BooleanField(default=True)
 
+    def __str__(self):
+        return f'{self.channel} - {self.user.get_full_name()}'
+
     class Meta:
         constraints = [
             models.UniqueConstraint(
@@ -102,5 +107,20 @@ class Message(BaseModel, TreeNode):
     class Meta:
         ordering = ['created_at']
 
-    #TODO: Add proper attachments (image,file, etc...)
-    #TODO: Add decidable links
+
+class Attachment(models.Model):
+    type = models.CharField(
+        choices=AttachmentChoices.choices,
+        max_length=16
+    )
+    
+    message = models.ForeignKey(
+        'feed.Message',
+        related_name='attachments',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True
+    )
+    link = models.CharField(max_length=512,blank=True,default='')
+    file = models.FileField(null=True,blank=True)
+    image = models.ImageField(null=True,blank=True, validators=[allowed_image_extensions])

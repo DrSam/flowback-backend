@@ -113,7 +113,6 @@ class GroupViewSet(
             is_admin=True
         )
 
-        #TODO: Create feed channel
         channel = Channel.objects.create(
             type = ChannelTypechoices.GROUP,
             title = group.name,

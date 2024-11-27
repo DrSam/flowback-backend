@@ -7,3 +7,4 @@ class DecidablesConfig(AppConfig):
 
     def ready(self) -> None:
         from . import logic
+        from . import signals

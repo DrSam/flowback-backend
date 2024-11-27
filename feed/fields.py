@@ -6,3 +6,8 @@ class ChannelTypechoices(models.TextChoices):
     GROUP = ("group","Group")
     DECIDABLE = ("decidable","Decidable")
     OPTION = ("option","Option")
+
+class AttachmentChoices(models.TextChoices):
+    IMAGE = ("image","Image")
+    FILE = ("file","File")
+    LINK = ("link","Link")

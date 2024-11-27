@@ -16,7 +16,7 @@ class DecidableFilter(django_filters.FilterSet):
 
     class Meta:
         model = decidable_models.Decidable
-        fields = ['title_contains','title_startswith']
+        fields = ['title_contains','title_startswith','is_root','decidable_type','primary_decidable','parent_decidable','parent_option']
 
 
 class OptionFilter(django_filters.FilterSet):
