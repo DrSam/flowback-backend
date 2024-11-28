@@ -9,7 +9,6 @@ from django.shortcuts import get_object_or_404
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
-from flowback.chat.models import MessageChannelParticipant, MessageChannel
 from flowback.chat.serializers import BasicMessageSerializer, MessageSerializer
 from flowback.chat.services import message_create, message_update, message_delete, user_message_channel_permission
 from flowback.common.services import get_object
@@ -100,6 +99,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def get_participating_channels(self):
+        from flowback.chat.models import MessageChannelParticipant
+
         return list(MessageChannelParticipant.objects.filter(user=self.user).values_list('channel_id', flat=True))
 
     @staticmethod
@@ -241,6 +242,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         try:
             serializer.is_valid(raise_exception=True)
+            from flowback.chat.models import MessageChannelParticipant
+
             await MessageChannelParticipant.objects.aget(user=self.user,
                                                          channel_id=data['channel_id'])
 
@@ -250,6 +253,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
                                                  channel_id=self.user_channel)
 
         except MessageChannelParticipant.DoesNotExist:
+            from flowback.chat.models import MessageChannelParticipant
+
             return await self.send_error_message(detail="User is not participating in this channel",
                                                  method="message_notify",
                                                  channel_id=self.user_channel)
