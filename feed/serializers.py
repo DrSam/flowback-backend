@@ -62,7 +62,48 @@ class MessageSerializer(serializers.ModelSerializer):
     )
     attachments = AttachmentSerializer(many=True,read_only=True)
     parent = ParentSerializer(read_only=True)
+    quote = ParentSerializer(read_only=True)
+    total_likes = serializers.SerializerMethodField()
+    total_replies = serializers.SerializerMethodField()
+    user_like = serializers.SerializerMethodField()
+    total_shares = serializers.SerializerMethodField()
+
+    def get_total_shares(self,obj):
+        return 0
+
+    def get_total_replies(self,obj):
+        if hasattr(obj,'replies_count'):
+            return obj.replies_count
+        return obj.children.count()
+
+    def get_total_likes(self,obj):
+        if hasattr(obj,'likes_count'):
+            return obj.likes_count
+        return obj.likes.count()
+
+    def get_user_like(self,obj):
+        if 'request' in self.context:
+            user = self.context.get('request').user
+            return user in obj.likes.all()
+        elif 'user' in self.context:
+            user = self.context.get('user')
+            return user in obj.likes.all()
 
     class Meta:
         model = Message
         fields = "__all__"
+
+
+class MessageUpdateSerializer(serializers.ModelSerializer):
+    channel_participant = ChannelParticipantSerializer(read_only=True)
+    channel_participant_id = serializers.PrimaryKeyRelatedField(
+        queryset = ChannelParticipant.objects,
+        required=False,
+        write_only=True
+    )
+    attachments = AttachmentSerializer(many=True,read_only=True)
+    
+    class Meta:
+        model = Message
+        fields = "__all__"
+

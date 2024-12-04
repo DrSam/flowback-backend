@@ -59,10 +59,12 @@ class GroupViewSet(
             queryset = queryset.filter(
                 public=True
             ).exclude(
-                groupuser__user=self.request.user
+                group_users__user=self.request.user
             )
-        
         queryset = queryset.annotate(
+            member_count = Count('group_users',distinct=True),
+            admin_count = Count('group_users',filter=Q(group_users__is_admin=True),distinct=True),
+            open_poll_count = Count('decidables',filter=Q(decidables__state='open'),distinct=True),
             is_member = Subquery(
                 GroupUser.objects.filter(
                     user=self.request.user,
@@ -93,10 +95,7 @@ class GroupViewSet(
                     status=GroupUserInviteStatusChoices.PENDING,
                     external=True
                 ).values('id')[:1]
-            ),
-            member_count = Count('groupuser'),
-            admin_count = Count('groupuser',filter=Q(groupuser__is_admin=True)),
-            open_poll_count = Count('decidables',filter=Q(decidables__state='open'))
+            )
         )
         return queryset
 
@@ -153,12 +152,12 @@ class GroupViewSet(
         
         if request.GET.get('is_admin'):
             queryset = queryset.filter(
-                groupuser__user=request.user,
-                groupuser__is_admin=True
+                group_users__user=request.user,
+                group_users__is_admin=True
             )
         else:
             queryset = queryset.filter(
-                groupuser__user=request.user
+                group_users__user=request.user
             )
         
         serializer = self.get_serializer(instance=queryset,many=True)

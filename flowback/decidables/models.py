@@ -28,7 +28,7 @@ class GroupDecidableAccess(TimeStampedModel):
         on_delete=models.CASCADE
     )
 
-    value = models.IntegerField(default=0)
+    value = models.DecimalField(max_digits=15,decimal_places=3,default=0.000)
 
     voters = models.ManyToManyField(
         'group.GroupUser',
@@ -149,7 +149,7 @@ class GroupDecidableOptionAccess(TimeStampedModel):
         on_delete=models.CASCADE
     )
 
-    value = models.IntegerField(default=0)
+    value = models.DecimalField(max_digits=15,decimal_places=3,default=0.000)
 
     voters = models.ManyToManyField(
         'group.GroupUser',

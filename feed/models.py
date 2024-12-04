@@ -101,8 +101,24 @@ class Message(BaseModel, TreeNode):
         related_name='feed_messages',
         on_delete=models.CASCADE
     )
+    quote = models.ForeignKey(
+        'self',
+        related_name='quoted_by',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
 
     content = models.TextField(max_length=2000,blank=True,default='')
+
+    likes = models.ManyToManyField(
+        User,
+        related_name='liked_messages',
+        blank=True
+    )
+    uuid = models.CharField(max_length=16,blank=True,default='')
+
+    is_edited = models.BooleanField(default=False)
 
     class Meta:
         ordering = ['created_at']
