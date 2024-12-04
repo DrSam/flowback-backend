@@ -173,13 +173,7 @@ class GroupViewSet(
         users = User.objects.filter(
             id__in=request.data.get('user_ids',[])
         )
-        # .exclude(
-        #     groupuserinvite__group=group,
-        #     groupuserinvite__status=GroupUserInviteStatusChoices.PENDING
-        # ).exclude(
-        #     groupuser__group=group,
-        #     groupuser__active=True
-        # )
+        
         for user in users:
             task_id = async_task(
                 'flowback.group.tasks.share_group_with_user',

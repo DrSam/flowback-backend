@@ -109,7 +109,7 @@ def poll_proposal_list(*, fetched_by: User, poll_id: int, filters=None):
 
 def poll_user_schedule_list(*, fetched_by: User, filters=None):
     filters = filters or {}
-    qs = PollProposal.objects.filter(created_by__group__groupuser__user__in=[fetched_by],
+    qs = PollProposal.objects.filter(created_by__group__group_users__user__in=[fetched_by],
                                      poll__poll_type=Poll.PollType.SCHEDULE,
                                      poll__status=1).order_by('poll', 'score')\
         .distinct('poll').all()

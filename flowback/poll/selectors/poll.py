@@ -63,12 +63,12 @@ def poll_list(*, fetched_by: User, group_id: Union[int, None], filters=None):
                           output_field=models.IntegerField())).all()
 
     else:
-        joined_groups = Group.objects.filter(id=OuterRef('created_by__group_id'), groupuser__user__in=[fetched_by])
+        joined_groups = Group.objects.filter(id=OuterRef('created_by__group_id'), group_users__user__in=[fetched_by])
         qs = Poll.objects.filter(
-            (Q(created_by__group__groupuser__user__in=[fetched_by]) & Q(created_by__group__groupuser__active=True)
-             | Q(public=True) & ~Q(created_by__group__groupuser__user__in=[fetched_by])
-             | Q(public=True) & Q(created_by__group__groupuser__user__in=[fetched_by]
-                                  ) & Q(created_by__group__groupuser__active=False)
+            (Q(created_by__group__group_users__user__in=[fetched_by]) & Q(created_by__group__group_users__active=True)
+             | Q(public=True) & ~Q(created_by__group__group_users__user__in=[fetched_by])
+             | Q(public=True) & Q(created_by__group__group_users__user__in=[fetched_by]
+                                  ) & Q(created_by__group__group_users__active=False)
              ) & Q(start_date__lte=timezone.now())
         ).annotate(group_joined=Exists(joined_groups),
                    priority=Sum('pollpriority__score', output_field=models.IntegerField(), default=0),
