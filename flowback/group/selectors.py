@@ -93,7 +93,7 @@ def group_user_permissions(*,
 
 # Simple statement to return Q object for group visibility
 def _group_get_visible_for(user: User):
-    query = Q(public=True) | Q(Q(public=False) & Q(groupuser__user__in=[user]))
+    query = Q(public=True) | Q(Q(public=False) & Q(group_users__user__in=[user]))
     return Group.objects.filter(query)
 
 
@@ -112,10 +112,10 @@ class BaseGroupFilter(django_filters.FilterSet):
 
 def group_list(*, fetched_by: User, filters=None):
     filters = filters or {}
-    joined_groups = Group.objects.filter(id=OuterRef('pk'), groupuser__user__in=[fetched_by])
+    joined_groups = Group.objects.filter(id=OuterRef('pk'), group_users__user__in=[fetched_by])
     qs = _group_get_visible_for(user=fetched_by
                                 ).annotate(joined=Exists(joined_groups),
-                                           member_count=Count('groupuser')
+                                           member_count=Count('group_users')
                                            ).order_by('created_at').all()
     qs = BaseGroupFilter(filters, qs).qs
     return qs
@@ -137,7 +137,7 @@ def group_kanban_entry_list(*, fetched_by: User, group_id: int, filters=None):
 
 def group_detail(*, fetched_by: User, group_id: int):
     group_user = group_user_permissions(group=group_id, user=fetched_by)
-    return Group.objects.annotate(member_count=Count('groupuser')).get(id=group_user.group.id)
+    return Group.objects.annotate(member_count=Count('group_users')).get(id=group_user.group.id)
 
 
 def group_schedule_event_list(*, fetched_by: User, group_id: int, filters=None):

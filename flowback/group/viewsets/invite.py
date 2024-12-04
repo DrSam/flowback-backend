@@ -86,8 +86,8 @@ class GroupUserInvitationViewSet(
             groupuserinvite__group=group,
             groupuserinvite__status=GroupUserInviteStatusChoices.PENDING
         ).exclude(
-            groupuser__group=group,
-            groupuser__active=True
+            group_users__group=group,
+            group_users__active=True
         )
         for user in users:
             GroupUserInvite.objects.create(

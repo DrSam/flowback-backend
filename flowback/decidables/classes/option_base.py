@@ -54,7 +54,7 @@ class BaseOption:
         # Add Add all users in decidable groups to channel
         users = list(
             User.objects.filter(
-                groupuser__group__in=self.decidable.groups.all()
+                group_users__group__in=self.decidable.groups.all()
             )
         )
         channel.participants.add(*users)
