@@ -52,6 +52,7 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     is_staff = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
+    email_confirmed = models.BooleanField(default=False)
 
     username = models.CharField(max_length=120, validators=[UnicodeUsernameValidator()], unique=True)
     profile_image = models.ImageField(null=True, blank=True, upload_to='user/profile_image')

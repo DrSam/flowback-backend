@@ -161,9 +161,16 @@ class UserViewSet(
         serializer = self.get_serializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors,status.HTTP_400_BAD_REQUEST)
-        serializer.save()
+        serializer.save(email_confirmed=True)
         return Response("OK",status.HTTP_201_CREATED)
     
+    @action(
+        detail=True,
+        methods=['POST']
+    )
+    def verify_email(self, request, *args, **kwargs):
+        pass
+
 
     @action(
         detail=False,

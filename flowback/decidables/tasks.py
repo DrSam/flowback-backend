@@ -67,13 +67,13 @@ def update_option_votes(decidable_id,option_id,user_id,vote):
     with transaction.atomic():
         # Get groups with access to option, that the user is a part of
         group_decidable_option_accesses = decidable_option.group_decidable_option_access.filter(
-            group__groupuser__user=user,
-            group__groupuser__active=True
+            group__group_users__user=user,
+            group__group_users__active=True
         )
 
         # Set the user's vote for all of the above groups with the current vote
         for group_decidable_option_access in group_decidable_option_accesses:
-            group_user = group_decidable_option_access.group.groupuser_set.get(
+            group_user = group_decidable_option_access.group.group_users.get(
                 user=user,
                 active=True
             )
@@ -87,9 +87,13 @@ def update_option_votes(decidable_id,option_id,user_id,vote):
 
         # For each group, update votes
         for group_decidable_option_access in group_decidable_option_accesses:
-            group_decidable_option_access.value = group_decidable_option_access.group_user_decidable_option_vote.aggregate(Sum('value'))['value__sum'] or 0
-            
-            group_users = group_decidable_option_access.group.groupuser_set.count()
+            if group_decidable_option_access.decidable_option.decidable.voting_type in ['approval','score']:
+                group_decidable_option_access.value = group_decidable_option_access.group_user_decidable_option_vote.aggregate(Sum('value'))['value__sum'] or 0
+            if group_decidable_option_access.decidable_option.decidable.voting_type in ['rating']:
+                group_decidable_option_access.value = group_decidable_option_access.group_user_decidable_option_vote.aggregate(Avg('value'))['value__avg'] or 0
+
+
+            group_users = group_decidable_option_access.group.group_users.count()
             voted_group_users = group_decidable_option_access.voters.count()
             # Count positive votes
             if group_decidable_option_access.decidable_option.decidable.voting_type == 'approval':
@@ -116,13 +120,13 @@ def update_decidable_votes(decidable_id,user_id,vote):
 
     with transaction.atomic():
         group_decidable_accesses = decidable.group_decidable_access.filter(
-            group__groupuser__user=user,
-            group__groupuser__active=True
+            group__group_users__user=user,
+            group__group_users__active=True
         )
 
         # Set the user's vote for all of the above groups with the current vote
         for group_decidable_access in group_decidable_accesses:
-            group_user = group_decidable_access.group.groupuser_set.get(
+            group_user = group_decidable_access.group.group_users.get(
                 user=user,
                 active=True
             )

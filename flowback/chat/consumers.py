@@ -267,19 +267,34 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         await self.send_message(channel_id=str(data['channel_id']), message=message)
 
+    @database_sync_to_async
+    def get_last_chats(self,channel_id):
+        from feed.models import Message
+        from feed.serializers import MessageSerializer
+        chats = Message.objects.filter(channel_participant__channel_id=channel_id).order_by('-created_at')[:25]
+        return MessageSerializer(chats,many=True,context={'user':self.user}).data
+
     async def send_stuff(self,event):
         data = event.get('data')
         await self.send(text_data=json.dumps(data))
 
     # Allows user to add/remove channels without reconnecting, for e.g. joining and leaving a group
     async def connect_channel(self, data, disconnect=False):
-        
+
         channel_id = data.get('channel_id')
         
-        #TODO: do a check if user can connect to channel
         if not disconnect:
             await self.channel_layer.group_add(f"{channel_id}", self.channel_name)
             self.participating_channels.append(f"{channel_id}")
+            chats = await self.get_last_chats(channel_id)
+            data = {
+                'type':'message',
+                'data':{
+                    'type':'messages_loaded',
+                    'messages':chats
+                }
+            }
+            await self.send_stuff({'data':data})
 
         #TODO: Do a check if user can disconnect from channel
         elif disconnect:

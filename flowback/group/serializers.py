@@ -26,7 +26,6 @@ class BasicGroupUserSerializer(serializers.ModelSerializer):
 
 
 class GroupSerializer(serializers.ModelSerializer):
-    chat = serializers.PrimaryKeyRelatedField(queryset=MessageChannel.objects,required=False)
     is_member = serializers.SerializerMethodField()
     is_admin = serializers.SerializerMethodField()
     is_pending_invite = serializers.SerializerMethodField()
@@ -41,22 +40,22 @@ class GroupSerializer(serializers.ModelSerializer):
         return channels.values()
 
     def get_is_member(self,obj):
-        if bool(getattr(obj,'is_member')):
+        if bool(getattr(obj,'is_member',False)):
             return True
         return False
     
     def get_is_admin(self,obj):
-        if bool(getattr(obj,'is_admin')):
+        if bool(getattr(obj,'is_admin',False)):
             return True
         return False
     
     def get_is_pending_invite(self,obj):
-        if bool(getattr(obj,'is_pending_invite')):
+        if bool(getattr(obj,'is_pending_invite',False)):
             return True
         return False
     
     def get_is_pending_join_request(self,obj):
-        if bool(getattr(obj,'is_pending_join_request')):
+        if bool(getattr(obj,'is_pending_join_request',False)):
             return True
         return False
     

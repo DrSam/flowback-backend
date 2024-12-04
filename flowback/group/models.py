@@ -137,8 +137,8 @@ class GroupTags(BaseModel):
 
 # User information for the specific group
 class GroupUser(BaseModel):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    group = models.ForeignKey(Group, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE,related_name='group_users')
+    group = models.ForeignKey(Group, on_delete=models.CASCADE,related_name='group_users')
     is_admin = models.BooleanField(default=False)
     permission = models.ForeignKey(GroupPermissions, null=True, blank=True, on_delete=models.SET_NULL)
     chat_participant = models.ForeignKey(MessageChannelParticipant, on_delete=models.PROTECT,null=True,blank=True)

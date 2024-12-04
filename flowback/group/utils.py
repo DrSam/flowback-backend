@@ -11,7 +11,7 @@ def add_user_to_group(group,user,admin=False):
         user=user,
         defaults={
             'active':True,
-            'admin':admin
+            'is_admin':admin
         }
     )
 
