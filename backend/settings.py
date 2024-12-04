@@ -235,14 +235,12 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 
 ASGI_APPLICATION = "backend.asgi.application"
 
-# "channels_redis.core.RedisChannelLayer"
-# "CONFIG": {
-#             "hosts": [(env('REDIS_IP'), env('REDIS_PORT'))],
-#         },
+
 CHANNEL_LAYERS = {
-    "default": {
-        "BACKEND": "channels.layers.InMemoryChannelLayer"  
-    },
+    "channels_redis.core.RedisChannelLayer"
+    "CONFIG": {
+                "hosts": [(env('REDIS_IP'), env('REDIS_PORT'))],
+            },
 }
 
 
