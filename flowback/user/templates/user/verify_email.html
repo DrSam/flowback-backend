@@ -6,7 +6,8 @@
     Hi {{user.first_name}},
 </p>
 <p>
-    
-        <span style="font-weight: bold;">{{group.name}}</span></a>. 
+    Please verify your email by clicking 
+    <a href="{{site_url}}/verify?token={{token}}">Here</a>
+    <span style="font-weight: bold;">{{group.name}}</span></a>. 
 </p>
 {% endblock %}

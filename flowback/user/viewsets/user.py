@@ -22,6 +22,9 @@ from rest_framework.permissions import BasePermission
 import rules
 from django.contrib.auth.password_validation import validate_password
 from flowback.user.tasks import email_verification_email
+from rest_framework.permissions import AllowAny
+import jwt
+from django.conf import settings
 
 class UserViewSetPermission(BasePermission):
     def has_permission(self, request, view):
@@ -252,4 +255,18 @@ class UserViewSet(
             return Response(serializer.data,status.HTTP_200_OK)
         return Response(serializer.errors,status.HTTP_400_BAD_REQUEST)
 
-
+    @action(
+        detail=False,
+        methods=['POST'],
+        url_path='verify-new-email',
+        permission_classes=[AllowAny]
+    )
+    def verify_new_email(self, request, *args, **kwargs):
+        token = request.data.get('token')
+        data = jwt.decode(token,settings.JWT_SECRET,algorithms=['HS256'])
+        user = User.objects.get(id=data['id'])
+        if user.email != data['email']:
+            return Response("Invalid link clicked",status.HTTP_400_BAD_REQUEST)
+        user.email_confirmed = True
+        user.save()
+        return Response("OK",status.HTTP_200_OK)
