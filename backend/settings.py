@@ -50,7 +50,8 @@ env = environ.Env(DEBUG=(bool, False),
                   EMAIL_USE_SSL=(bool, None),
                   INTEGRATIONS=(list, []),
                   SCORE_VOTE_CEILING=(int, 100),
-                  SCORE_VOTE_FLOOR=(int, 0)
+                  SCORE_VOTE_FLOOR=(int, 0),
+                  JWT_SECRET=(str,None)
                   )
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -365,3 +366,5 @@ CORS_ALLOW_METHODS = [
     'GET',
     'OPTIONS'
 ]
+
+JWT_SECRET = env("JWT_SECRET")

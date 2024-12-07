@@ -5,14 +5,23 @@ from backend.settings import DEFAULT_FROM_EMAIL, SITE_URL
 from django.core.mail import send_mail
 from django.utils.html import strip_tags
 from django.core.mail import EmailMultiAlternatives
+import jwt
+from django.conf import settings
+
 
 def email_verification_email(user_id):
     user = User.objects.get(id=user_id)
+    data = {
+        "email":user.email,
+        "id":user.id
+    }
+    encoded_jwt = jwt.encode(data,settings.JWT_SECRET,algorithm='HS256')
     html_string = render_to_string(
         'user/verify_email.html',
         {
             'user':user,
-            'site_url':SITE_URL
+            'site_url':SITE_URL,
+            "token":encoded_jwt
         }
     )
     send_mail(
