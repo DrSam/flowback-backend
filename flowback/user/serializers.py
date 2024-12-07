@@ -72,7 +72,7 @@ class UserVerifySerializer(serializers.Serializer):
     
     def create(self, validated_data):
         if not validated_data['verification_code']:
-            raise ValidationError('hi')
+            raise ValidationError('Verification code invalid')
         onboard_user = OnboardUser.objects.get(
             verification_code = validated_data['verification_code']
         )

@@ -17,6 +17,9 @@ class Decidable(BaseDecidable):
                 option=option
             )
             decidable_option.groups.set(self.decidable.get_root_decidable().groups.all())
+        
+        self.decidable.feed_channel_id = self.decidable.primary_decidable.feed_channel_id
+        self.decidable.save()
 
     def on_confirm(self):        
         pass

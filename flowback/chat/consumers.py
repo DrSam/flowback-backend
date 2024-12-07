@@ -30,7 +30,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         # # Assign user to their channels
         self.user_channel = f"user_{self.user.id}"
-        self.participating_channels = []
+        self.participating_channels = set()
         await self.channel_layer.group_add(
             self.user_channel,
             self.channel_name
@@ -282,10 +282,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
     async def connect_channel(self, data, disconnect=False):
 
         channel_id = data.get('channel_id')
+        print('channel_id: ',channel_id)
         
         if not disconnect:
             await self.channel_layer.group_add(f"{channel_id}", self.channel_name)
-            self.participating_channels.append(f"{channel_id}")
+            self.participating_channels.add(f"{channel_id}")
             chats = await self.get_last_chats(channel_id)
             data = {
                 'type':'message',
@@ -298,6 +299,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         #TODO: Do a check if user can disconnect from channel
         elif disconnect:
+            print('disconnecting...')
             await self.channel_layer.group_discard(f"{channel_id}", self.channel_name)
 
         else:

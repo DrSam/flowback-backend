@@ -7,12 +7,15 @@ class Decidable(BaseDecidable):
     
     def on_create(self):
         super().on_create()
+        if self.decidable.parent_option:
+            self.decidable.feed_channel_id = self.parent_option.feed_channel_id
+            self.decidable.save()
+        if self.decidable.parent_decidable:
+            self.decidable.feed_channel_id = self.parent_decidable.feed_channel_id
+            self.decidable.save()
 
     def on_confirm(self):        
-        
-        # Create channel only if not a sub poll
-        if not (self.decidable.parent_decidable or self.decidable.primary_decidable):
-            self.create_feed_channel()
+        pass
             
     def on_option_create(self, option):
         pass
