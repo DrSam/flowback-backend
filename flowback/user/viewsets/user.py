@@ -21,7 +21,7 @@ from django.core.mail import send_mail
 from rest_framework.permissions import BasePermission
 import rules
 from django.contrib.auth.password_validation import validate_password
-
+from flowback.user.tasks import email_verification_email
 
 class UserViewSetPermission(BasePermission):
     def has_permission(self, request, view):
@@ -243,9 +243,11 @@ class UserViewSet(
             serializer = self.get_serializer(instance=user,data=data,partial=True)
         if serializer.is_valid():
             # Check if email has been changed
-            if 'email' in serializer.validated_data:
-                pass
             serializer.save()
+            if 'email' in serializer.validated_data:
+                user.email_confirmed = False
+                user.save()
+                email_verification_email(user.id)
             serializer = self.get_serializer(instance=user)
             return Response(serializer.data,status.HTTP_200_OK)
         return Response(serializer.errors,status.HTTP_400_BAD_REQUEST)

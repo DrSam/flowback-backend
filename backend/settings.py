@@ -341,7 +341,6 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
 SIMPLE_JWT = {
-    'USER_ID_FIELD':'email',
     "ACCESS_TOKEN_LIFETIME": timedelta(days=30),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=365),
 }
@@ -357,3 +356,12 @@ Q_CLUSTER = {
     'timeout':60,
     'sync':False
 }
+
+CORS_ALLOW_METHODS = [
+    'GET',
+    'POST',
+    'PATCH',
+    'DELETE',
+    'GET',
+    'OPTIONS'
+]
