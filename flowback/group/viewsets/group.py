@@ -22,7 +22,7 @@ from django.db.models import Q
 from django.db.models import Subquery, OuterRef, Count
 from flowback.user.models import User
 from django_q.tasks import async_task
-
+from flowback.group.tasks import share_group_with_user
 
 class GroupViewSetPermission(BasePermission):
     def has_permission(self, request, view):
@@ -175,8 +175,7 @@ class GroupViewSet(
         )
         
         for user in users:
-            task_id = async_task(
-                'flowback.group.tasks.share_group_with_user',
+            task_id = share_group_with_user(
                 group.id,
                 user.id,
                 request.user.id
