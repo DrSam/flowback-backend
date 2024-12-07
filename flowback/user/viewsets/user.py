@@ -166,7 +166,8 @@ class UserViewSet(
     
     @action(
         detail=True,
-        methods=['POST']
+        methods=['POST'],
+        url_path='email/verify'
     )
     def verify_email(self, request, *args, **kwargs):
         pass
@@ -241,6 +242,9 @@ class UserViewSet(
             data.pop('banner_image')
             serializer = self.get_serializer(instance=user,data=data,partial=True)
         if serializer.is_valid():
+            # Check if email has been changed
+            if 'email' in serializer.validated_data:
+                pass
             serializer.save()
             serializer = self.get_serializer(instance=user)
             return Response(serializer.data,status.HTTP_200_OK)

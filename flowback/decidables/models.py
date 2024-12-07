@@ -80,7 +80,7 @@ class Decidable(TimeStampedModel,TitleDescriptionModel):
 
     created_by = models.ForeignKey(
         'group.GroupUser',
-        related_name='decidable',
+        related_name='decidables',
         on_delete=models.PROTECT,
         null=True,
         blank=True
@@ -198,6 +198,14 @@ class Option(TimeStampedModel,TitleDescriptionModel):
         'decidables.Decidable',
         related_name='descendent_options',
         on_delete=models.CASCADE,
+        null=True,
+        blank=True
+    )
+
+    created_by = models.ForeignKey(
+        'group.GroupUser',
+        related_name='oprions',
+        on_delete=models.PROTECT,
         null=True,
         blank=True
     )

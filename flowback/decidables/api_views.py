@@ -479,11 +479,16 @@ class OptionViewSet(
         attachments = data.pop('attachments',[])
         tags = data.pop('tags',[])
 
+        group_user = GroupUser.objects.filter(
+            user=request.user,
+            group=self.get_group()
+        ).first()
         serializer = self.get_serializer(data=data)
         if not serializer.is_valid():
             return Response(serializer.errors,status.HTTP_400_BAD_REQUEST)
         option = serializer.save(
-            root_decidable = decidable.get_root_decidable()
+            root_decidable = decidable.get_root_decidable(),
+            created_by=group_user
         )
         option.decidables.add(decidable)
 
