@@ -73,6 +73,8 @@ class User(AbstractBaseUser, PermissionsMixin):
     address = models.TextField(default='',blank=True)
     country = models.CharField(max_length=150, blank=True, default='')
     zip = models.CharField(max_length=32, blank=True, default='')
+    city = models.CharField(max_length=128, blank=True, default='')
+    state = models.CharField(max_length=64, blank=True, default='')
     birth_date = models.DateField(null=True,blank=True)
     language = models.CharField(max_length=8, default='',blank=True)
 
