@@ -52,7 +52,8 @@ env = environ.Env(DEBUG=(bool, False),
                   SCORE_VOTE_CEILING=(int, 100),
                   SCORE_VOTE_FLOOR=(int, 0),
                   JWT_SECRET=(str,None),
-                  ALLOWED_HOSTS=(list,[])
+                  ALLOWED_HOSTS=(list,[]),
+                  CHANNELS_SERVICE=(str,'mem')
                   )
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -239,15 +240,23 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 
 ASGI_APPLICATION = "backend.asgi.application"
 
-# "channels_redis.core.RedisChannelLayer"
-# "CONFIG": {
-#             "hosts": [(env('REDIS_IP'), env('REDIS_PORT'))],
-#         },
-CHANNEL_LAYERS = {
-    "default": {
-        "BACKEND": "channels.layers.InMemoryChannelLayer"  
-    },
-}
+
+if env('CHANNELS_SERVICE','')=='redis':
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels_redis.core.RedisChannelLayer",
+            "CONFIG": {
+                "hosts": [(env('REDIS_IP'), env('REDIS_PORT'))],
+            },
+        }
+    }
+else:
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels.layers.InMemoryChannelLayer"  
+        },
+    }
+
 
 
 # Database
