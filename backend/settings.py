@@ -51,14 +51,14 @@ env = environ.Env(DEBUG=(bool, False),
                   INTEGRATIONS=(list, []),
                   SCORE_VOTE_CEILING=(int, 100),
                   SCORE_VOTE_FLOOR=(int, 0),
-                  JWT_SECRET=(str,None)
+                  JWT_SECRET=(str,None),
+                  ALLOWED_HOSTS=(list,[])
                   )
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 TESTING = sys.argv[1:2] == ['test'] or "pytest" in sys.modules
 env.read_env(os.path.join(BASE_DIR, "../../.env"))
-
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.0/howto/deployment/checklist/
@@ -73,7 +73,10 @@ FLOWBACK_URL = env('FLOWBACK_URL')
 INSTANCE_NAME = env('INSTANCE_NAME')
 SITE_URL = env('SITE_URL')
 
-ALLOWED_HOSTS = [FLOWBACK_URL or "*"]
+if DEBUG:
+    ALLOWED_HOSTS = ["*"]
+else:
+    ALLOWED_HOSTS = [env('ALLOWED_HOSTS')]
 
 CORS_ALLOW_ALL_ORIGINS = not bool(FLOWBACK_URL)
 if not CORS_ALLOW_ALL_ORIGINS:
