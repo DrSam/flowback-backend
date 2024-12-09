@@ -80,8 +80,11 @@ class UserVerifySerializer(serializers.Serializer):
         user = User.objects.create_user(
             username = onboard_user.username,
             email = onboard_user.email,
-            password = validated_data['password']
+            password = validated_data['password'],
         )
+        user.email_confirmed=True
+        user.save()
+        onboard_user.delete()
         return user
     
 

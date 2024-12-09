@@ -189,8 +189,9 @@ class GroupThread(BaseModel):
 
 
 class GroupUserInvite(BaseModel):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE,null=True)
     group = models.ForeignKey(Group, on_delete=models.CASCADE)
+    email = models.CharField(max_length=128,blank=True,default='')
     external = models.BooleanField()
     status = models.CharField(
         choices=GroupUserInviteStatusChoices.choices,
