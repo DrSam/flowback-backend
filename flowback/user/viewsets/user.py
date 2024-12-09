@@ -25,6 +25,7 @@ from flowback.user.tasks import email_verification_email
 from rest_framework.permissions import AllowAny
 import jwt
 from django.conf import settings
+from flowback.group.models import GroupUserInvite
 
 class UserViewSetPermission(BasePermission):
     def has_permission(self, request, view):
@@ -164,7 +165,13 @@ class UserViewSet(
         serializer = self.get_serializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors,status.HTTP_400_BAD_REQUEST)
-        serializer.save(email_confirmed=True)
+        
+        user = serializer.save()
+        # Check if there were any groupuser invitations that belonged to email address
+        GroupUserInvite.objects.filter(
+            user__isnull=True,
+            email=user.email
+        ).update(user=user,email='')
         return Response("OK",status.HTTP_201_CREATED)
     
     @action(

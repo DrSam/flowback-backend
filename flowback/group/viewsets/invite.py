@@ -23,6 +23,17 @@ from feed.models import Channel
 from feed.fields import ChannelTypechoices
 from django.db.models import Q
 from flowback.group.utils import add_user_to_group
+from flowback.group.tasks import invite_user_to_group
+from flowback.group.tasks import invite_email_to_group
+import re
+
+def is_valid_email(email):
+    if not isinstance(email,str):
+        return False
+    # Regular expression for validating an email
+    email_regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    return re.match(email_regex, email) is not None
+
 
 class GroupUserInvitationViewSetPermission(BasePermission):
     def has_permission(self, request, view):
@@ -80,8 +91,13 @@ class GroupUserInvitationViewSet(
     def send_invite(self, request, *args, **kwargs):
         group = self.get_group()
 
+        # split IDs and emails
+        ids = [id for id in request.data.get('user_ids') if isinstance(id,int)]
+        emails = [email for email in request.data.get('user_ids') if is_valid_email(email)]
+
+        # Send invites for users
         users = User.objects.filter(
-            id__in=request.data.get('user_ids',[])
+            id__in=ids
         ).exclude(
             groupuserinvite__group=group,
             groupuserinvite__status=GroupUserInviteStatusChoices.PENDING
@@ -96,10 +112,24 @@ class GroupUserInvitationViewSet(
                 external=False,
                 initiator=request.user
             )
+            # Send email for invited users
+            invite_user_to_group(group.id,user.id,request.user.id)
+        
+
+        # Create invites for non-users
+        for email in emails:
+            GroupUserInvite.objects.create(
+                email=email,
+                group=group,
+                external=False,
+                initiator=request.user
+            )
+            # Send email for invited users
+            invite_email_to_group(group.id,email,request.user.id)
 
         # Send notification to invited person
         channel_layer = get_channel_layer()
-        for user_id in request.data.get('user_ids',[]):
+        for user_id in ids:
             async_to_sync(
                 channel_layer.group_send
             )(
@@ -308,5 +338,6 @@ def my_invites(request):
         status=GroupUserInviteStatusChoices.PENDING,
         external=False,
     )
+    print(group_invites)
     serializer = GroupUserInviteSerializer(group_invites,many=True)
     return Response(serializer.data,status.HTTP_200_OK)

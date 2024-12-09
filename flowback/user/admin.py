@@ -4,6 +4,7 @@ from flowback.user.models import User
 from flowback.user.models import OnboardUser
 from django import forms
 
+admin.site.register(OnboardUser)
 
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):

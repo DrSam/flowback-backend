@@ -23,6 +23,16 @@ from django.db.models import Subquery, OuterRef, Count
 from flowback.user.models import User
 from django_q.tasks import async_task
 from flowback.group.tasks import share_group_with_user
+from flowback.group.tasks import share_group_with_email
+import re
+
+def is_valid_email(email):
+    if not isinstance(email,str):
+        return False
+    # Regular expression for validating an email
+    email_regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    return re.match(email_regex, email) is not None
+
 
 class GroupViewSetPermission(BasePermission):
     def has_permission(self, request, view):
@@ -170,16 +180,28 @@ class GroupViewSet(
     def share(self, request, *args, **kwargs):
         group = self.get_object()
 
+        # split IDs and emails
+        ids = [id for id in request.data.get('user_ids') if isinstance(id,int)]
+        emails = [email for email in request.data.get('user_ids') if is_valid_email(email)]
+
         users = User.objects.filter(
-            id__in=request.data.get('user_ids',[])
+            id__in=ids
         )
-        
         for user in users:
-            task_id = share_group_with_user(
+            share_group_with_user(
                 group.id,
                 user.id,
                 request.user.id
             )
+        
+        for email in emails:
+            share_group_with_email(
+                group.id,
+                email,
+                request.user.id
+            )
+        
+
 
             
         return Response("OK",status.HTTP_200_OK)
