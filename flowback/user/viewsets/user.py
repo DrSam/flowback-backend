@@ -226,21 +226,18 @@ class UserViewSet(
         
 
     @action(
-        detail=False,
+        detail=True,
         methods=['GET'],
-        url_path='(?P<username>[^/.]+)/profile'
     )
     def profile(self, request, *args, **kwargs):
-        user = User.objects.filter(username=kwargs.get('username')).first()
-        if not user:
-            return Response("User not found",status.HTTP_400_BAD_REQUEST)
+        user = self.get_object()
         serializer = self.get_serializer(instance=user)
         return Response(serializer.data,status.HTTP_200_OK)
     
     
     @profile.mapping.patch
     def update_profile(self, request, *args, **kwargs):
-        user = User.objects.filter(username=kwargs.get('username')).first()
+        user = self.get_object()
         if user!=request.user:
             return Response("Not allowed",status.HTTP_401_UNAUTHORIZED)
         
