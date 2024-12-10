@@ -53,7 +53,8 @@ env = environ.Env(DEBUG=(bool, False),
                   SCORE_VOTE_FLOOR=(int, 0),
                   JWT_SECRET=(str,None),
                   ALLOWED_HOSTS=(list,[]),
-                  CHANNELS_SERVICE=(str,'mem')
+                  CHANNELS_SERVICE=(str,'mem'),
+                  CSRF_TRUSTED_ORIGINS=(list,[])
                   )
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -78,6 +79,11 @@ if DEBUG:
     ALLOWED_HOSTS = ["*"]
 else:
     ALLOWED_HOSTS = env('ALLOWED_HOSTS')
+
+if DEBUG:
+    CSRF_TRUSTED_ORIGINS = ['*']
+else:
+    CSRF_TRUSTED_ORIGINS = env('CSRF_TRUSTED_ORIGINS')
 
 CORS_ALLOW_ALL_ORIGINS = not bool(FLOWBACK_URL)
 if not CORS_ALLOW_ALL_ORIGINS:
