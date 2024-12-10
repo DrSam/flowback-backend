@@ -238,6 +238,7 @@ class UserViewSet(
     @profile.mapping.patch
     def update_profile(self, request, *args, **kwargs):
         user = self.get_object()
+        old_email = user.email
         if user!=request.user:
             return Response("Not allowed",status.HTTP_401_UNAUTHORIZED)
         
@@ -251,7 +252,8 @@ class UserViewSet(
         if serializer.is_valid():
             # Check if email has been changed
             serializer.save()
-            if 'email' in serializer.validated_data:
+            user = refresh_from_db()
+            if user.email != old_email:
                 user.email_confirmed = False
                 user.save()
                 email_verification_email(user.id)
