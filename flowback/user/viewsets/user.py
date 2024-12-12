@@ -149,8 +149,7 @@ class UserViewSet(
 
         link = f'Use this code to create your account: {user.verification_code}'
         if FLOWBACK_URL:
-            link = f'''Use this link to create your account: {FLOWBACK_URL}/create_account/
-                    ?email={user.email}&verification_code={user.verification_code}'''
+            link = f'''Use this link to create your account: {FLOWBACK_URL}/create_account/?email={user.email}&verification_code={user.verification_code}'''
 
         send_mail('Flowback Verification Code', link, DEFAULT_FROM_EMAIL, [user.email])
 
