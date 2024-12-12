@@ -238,7 +238,6 @@ class UserViewSet(
     @profile.mapping.patch
     def update_profile(self, request, *args, **kwargs):
         user = self.get_object()
-        print(user)
         old_email = user.email
         if user!=request.user:
             return Response("Not allowed",status.HTTP_401_UNAUTHORIZED)
