@@ -61,7 +61,6 @@ class DecidableDetailSerializer(serializers.ModelSerializer):
     option_count = serializers.SerializerMethodField()
     attachments = serializers.SerializerMethodField()
     options = serializers.SerializerMethodField()
-    root_state = serializers.SerializerMethodField()
     feed_channel = serializers.SerializerMethodField()
     linkfile_poll = serializers.SerializerMethodField()
     bread_crumb = serializers.SerializerMethodField()
@@ -94,9 +93,6 @@ class DecidableDetailSerializer(serializers.ModelSerializer):
         from feed.serializers import ChannelSerializer
         return ChannelSerializer(instance=obj.feed_channel).data if hasattr(obj,'feed_channel') else None
 
-    def get_root_state(self,obj):
-        return obj.get_root_decidable().state
-
     def get_options(self,obj):
         return OptionListSerializer(instance=obj.options,many=True).data
 
@@ -119,8 +115,7 @@ class OptionDetailSerializer(serializers.ModelSerializer):
     option_rank = serializers.IntegerField(read_only=True)
     total_option_count = serializers.IntegerField(read_only=True)
     attachments = serializers.SerializerMethodField()
-    root_state = serializers.SerializerMethodField()
-    reason_poll = serializers.SerializerMethodField()
+    reason_decidable = serializers.SerializerMethodField()
     linkfile_poll = serializers.SerializerMethodField()
     bread_crumb = serializers.SerializerMethodField()
     feed_channel = serializers.SerializerMethodField()
@@ -141,16 +136,12 @@ class OptionDetailSerializer(serializers.ModelSerializer):
         ).first()
         return DecidableStumpSerializer(instance=linkfile_poll).data
 
-    def get_reason_poll(self,obj):
+    def get_reason_decidable(self,obj):
         reason_poll = obj.child_decidables.filter(
             decidable_type=DecidableTypeChoices.REASONPOLL
         ).first()
         return DecidableStumpSerializer(instance=reason_poll).data
 
-    def get_root_state(self,obj):
-        return obj.root_decidable.state
-
-    
     class Meta:
         model = models.Option
         fields = "__all__"
@@ -254,16 +245,12 @@ class DecidableListSerializer(serializers.ModelSerializer):
     votes = serializers.IntegerField(read_only=True)
     user_vote = serializers.IntegerField(read_only=True)
     option_count = serializers.SerializerMethodField()
-    root_state = serializers.SerializerMethodField()
     channel_feed = serializers.SerializerMethodField()
     total_poll_count = serializers.IntegerField(read_only=True)
 
     def get_channel_feed(self,obj):
         return obj.channel_feed if hasattr(obj,'channel_feed') else None
 
-    def get_root_state(self,obj):
-        return obj.get_root_decidable().state
-    
     def get_option_count(self,obj):
         return obj.options.count()
 
@@ -286,14 +273,18 @@ class OptionListSerializer(serializers.ModelSerializer):
     user_vote = serializers.IntegerField(read_only=True)
     option_rank = serializers.IntegerField(read_only=True)
     total_option_count = serializers.IntegerField(read_only=True)
-    root_state = serializers.SerializerMethodField()
-    reason_decidable = DecidableStumpSerializer(read_only=True)
+    reason_decidable = serializers.SerializerMethodField()
     tags = serializers.SerializerMethodField()
     quorum = serializers.IntegerField(read_only=True)
     approval = serializers.IntegerField(read_only=True)
     passed_flag = serializers.BooleanField(read_only=True)
     passed_timestamp = serializers.DateTimeField(read_only=True)
     winner = serializers.BooleanField(read_only=True)
+
+    def get_reason_decidable(self,obj):
+        if obj.child_decidables.filter(decidable_type='reason').exists():
+            decidable = obj.child_decidables.filter(decidable_type='reason').first()
+            return DecidableStumpSerializer(decidable).data
 
     def get_tags(self,obj):
         decidable = self.context.get('decidable')
@@ -304,9 +295,6 @@ class OptionListSerializer(serializers.ModelSerializer):
             decidable=decidable
         ).first()
         return decidable_option.tags
-
-    def get_root_state(self,obj):
-        return obj.root_decidable.state
     
     def get_attachments(self,obj):
         return AttachmentDetailSerializer(instance=obj.attachments,many=True).data
@@ -320,10 +308,6 @@ class OptionListSerializer(serializers.ModelSerializer):
 class DecidableCreateSerializer(serializers.ModelSerializer):
     attachments = serializers.SerializerMethodField()
     options = serializers.SerializerMethodField()
-    root_state = serializers.SerializerMethodField()
-
-    def get_root_state(self,obj):
-        return obj.get_root_decidable().state
 
     def get_options(self,obj):
         return OptionListSerializer(instance=obj.options,many=True).data
@@ -339,10 +323,6 @@ class DecidableCreateSerializer(serializers.ModelSerializer):
 
 class OptionCreateSerializer(serializers.ModelSerializer):
     attachments = serializers.SerializerMethodField()
-    root_state = serializers.SerializerMethodField()
-
-    def get_root_state(self,obj):
-        return obj.root_decidable.state
     
     def get_attachments(self,obj):
         return AttachmentDetailSerializer(instance=obj.attachments,many=True).data
