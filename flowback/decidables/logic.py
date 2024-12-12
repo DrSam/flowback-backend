@@ -1,6 +1,7 @@
 from django_logic import Process as BaseProcess, Transition, ProcessManager, Action
 from django_logic.commands import BaseCommand
 from flowback.decidables.fields import DecidableStateChoices
+from flowback.decidables.models import GroupDecidableAccess
 from flowback.decidables.models import Decidable
 from flowback.group import rules as group_rules
 
@@ -44,6 +45,12 @@ class DecidableProcess(BaseProcess):
 
 ProcessManager.bind_model_process(
     Decidable,
+    DecidableProcess,
+    state_field='state'
+)
+
+ProcessManager.bind_model_process(
+    GroupDecidableAccess,
     DecidableProcess,
     state_field='state'
 )
