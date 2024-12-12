@@ -5,6 +5,7 @@ class DecidableStateChoices(models.TextChoices):
     NOT_STARTED = ("not_started","Not started")
     OPEN = ("open","Open")
     CLOSED = ("closed","Closed")
+    ARCHIVED = ("archived","Archived")
 
 
 class DecidableTypeChoices(models.TextChoices):
