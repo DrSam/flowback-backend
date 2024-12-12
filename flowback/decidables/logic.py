@@ -29,6 +29,16 @@ class DecidableProcess(BaseProcess):
             action_name='end_poll',
             sources=['open'],
             target='closed'
+        ),
+        Transition(
+            action_name='reopen_poll',
+            sources=['closed'],
+            target='open'
+        ),
+        Transition(
+            action_name='archive_poll',
+            sources=['closed'],
+            target='archived'
         )
     ]
 

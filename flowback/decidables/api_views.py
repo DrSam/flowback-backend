@@ -44,11 +44,16 @@ class DecidableViewSetPermission(BasePermission):
         return super().has_permission(request,view)
 
     def has_object_permission(self, request, view, obj):
+        group = view.get_group()
+        group_obj = decidable_models.GroupDecidableAccess.objects.get(
+            group=group,
+            decidable=obj
+        )
         if view.action == 'transition':
             state = request.data.get('state')
             if not state:
                 return False
-            actions = obj.fsm.get_available_actions(request.user)
+            actions = group_obj.fsm.get_available_actions(request.user)
             if state not in actions:
                 return False
             return True
@@ -72,6 +77,14 @@ class DecidableViewSet(ModelViewSet):
         group = Group.objects.get(id=group_id)
         self._group = group
         return self._group
+
+    def get_group_decidable_access(self):
+        if not self.detail:
+            return
+        decidable = self.get_object()
+        group = self.get_group()
+        group_decidable_access = decidable.group_decidable_access.filter(group=group).first()
+        return group_decidable_access
 
     def annotate_queryset(self,queryset):
         queryset = queryset.annotate(
@@ -174,13 +187,16 @@ class DecidableViewSet(ModelViewSet):
     def get_serializer_context(self):
         context = super().get_serializer_context()
         context['group'] = self.get_group()
+        context['group_decidable_access'] = self.get_group_decidable_access()
         return context
 
     def get_serializer_class(self):
         if self.action in ['create','confirm','create_aspect']:
             return decidable_serializers.DecidableCreateSerializer
-        elif self.action in ['aspect']:
+        elif self.action in ['aspect','transition']:
             return decidable_serializers.DecidableListSerializer
+        elif self.action in ['results']:
+            return decidable_serializers.DecidableResultSerializer
         elif not self.detail:
             return decidable_serializers.DecidableListSerializer
         else:
@@ -237,8 +253,9 @@ class DecidableViewSet(ModelViewSet):
         decidable = self.get_object()
         decidable.confirmed = True
         decidable.save()
-        decidable.fsm.start_poll(user=request.user)
-        decidable.save()
+        group_decidable_access = self.get_group_decidable_access()
+        group_decidable_access.fsm.start_poll(user=request.user)
+        group_decidable_access.save()
 
         after_decidable_confirm(decidable.id)
         
@@ -279,9 +296,22 @@ class DecidableViewSet(ModelViewSet):
     )
     def transition(self, request, *args, **kwargs):
         decidable = self.get_object()
-        getattr(decidable.fsm,request.data.get('state'))(user=request.user)
-        serializer = decidable_serializers.DecidableListSerializer(decidable)
+        group_decidable_access = self.get_group_decidable_access()
+        getattr(group_decidable_access.fsm,request.data.get('state'))(user=request.user)
+        group_decidable_access.save()
+        serializer = self.get_serializer(decidable)
         return Response(serializer.data,status.HTTP_200_OK)
+
+    @action(
+        detail=True,
+        methods=['GET']
+    )
+    def results(self, request, *args, **kwargs):
+        decidable = self.get_object()
+        serializer = self.get_serializer(instance=decidable)
+        return Response(serializer.data,status.HTTP_200_OK)
+
+
 
 
 class AttachmentViewSetPermission(BasePermission):
@@ -356,6 +386,27 @@ class OptionViewSet(
                     decidable_option__decidable_id=self.get_decidable().id,
                     decidable_option__option_id=OuterRef('id')
                 ).values('approval')[:1]
+            ),
+            passed_flag=Subquery(
+                decidable_models.GroupDecidableOptionAccess.objects.filter(
+                    group=self.get_group(),
+                    decidable_option__decidable_id=self.get_decidable().id,
+                    decidable_option__option_id=OuterRef('id')
+                ).values('passed_flag')[:1]
+            ),
+            passed_timestamp=Subquery(
+                decidable_models.GroupDecidableOptionAccess.objects.filter(
+                    group=self.get_group(),
+                    decidable_option__decidable_id=self.get_decidable().id,
+                    decidable_option__option_id=OuterRef('id')
+                ).values('passed_timestamp')[:1]
+            ),
+            winner=Subquery(
+                decidable_models.GroupDecidableOptionAccess.objects.filter(
+                    group=self.get_group(),
+                    decidable_option__decidable_id=self.get_decidable().id,
+                    decidable_option__option_id=OuterRef('id')
+                ).values('winner')[:1]
             ),
             user_vote=Subquery(
                 decidable_models.GroupUserDecidableOptionVote.objects.filter(
@@ -553,25 +604,6 @@ class OptionViewSet(
     )
     def results(self, request, *args, **kwargs):
         decidable = self.get_decidable()
-        data = {
-            'labels':['Memphis','Nashville','Knoxville'],
-            'datasets':[{
-                'label':'Poll results',
-                'data':[20,50,30],
-                'backgroundColor': [
-                    'rgba(98,  182, 239,0.5)',
-                    'rgba(98,  182, 239,0.5)',
-                    'rgba(98,  182, 239,0.5)',
-                ],
-                'borderWidth': 2,
-                'borderColor': [
-                    'rgba(98,  182, 239, 1)',
-                    'rgba(98,  182, 239, 1)',
-                    'rgba(98,  182, 239, 1)',
-                ],
-            }
-            ]
-        }  
-    
-        return Response(data,status.HTTP_200_OK)
+        
+        return Response("OK",status.HTTP_200_OK)
     

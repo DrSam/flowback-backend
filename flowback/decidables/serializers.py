@@ -55,7 +55,6 @@ class BreadCrumbOptionSerializer(serializers.ModelSerializer):
 
 # Detail Serializers
 class DecidableDetailSerializer(serializers.ModelSerializer):
-    available_actions = serializers.SerializerMethodField()
     poll_rank = serializers.IntegerField(read_only=True)
     votes = serializers.IntegerField(read_only=True)
     user_vote = serializers.IntegerField(read_only=True)
@@ -67,6 +66,11 @@ class DecidableDetailSerializer(serializers.ModelSerializer):
     linkfile_poll = serializers.SerializerMethodField()
     bread_crumb = serializers.SerializerMethodField()
     total_poll_count = serializers.IntegerField(read_only=True)
+    state = serializers.SerializerMethodField()
+    
+    def get_state(self,obj):
+        group_decidable_access = self.context.get('group_decidable_access')
+        return group_decidable_access.state
 
     def get_linkfile_poll(self,obj):
         linkfile_poll = obj.child_decidables.filter(
@@ -103,18 +107,10 @@ class DecidableDetailSerializer(serializers.ModelSerializer):
     def get_option_count(self,obj):
         return obj.options.count()
     
-    def get_available_actions(self,obj):
-        request = self.context.get('request')
-        if not request or not request.user.is_authenticated:
-            return []
-        return obj.fsm.get_available_actions(
-            user=request.user
-        )
 
     class Meta:
         model = models.Decidable
         fields = "__all__"
-
 
 
 class OptionDetailSerializer(serializers.ModelSerializer):
@@ -189,10 +185,71 @@ class AttachmentDetailSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
+class DecidableResultSerializer(serializers.ModelSerializer):
+    state = serializers.SerializerMethodField()
+    group_user_count = serializers.SerializerMethodField()
+    group_voter_count = serializers.SerializerMethodField()
+    group_votes_count = serializers.SerializerMethodField()
+    group_num_winners = serializers.SerializerMethodField()
+    group_num_passed_quorum_approval = serializers.SerializerMethodField()
+
+    def get_group_num_passed_quorum_approval(self,obj):
+        group = self.context.get('group')
+        decidable = obj
+        return models.GroupDecidableOptionAccess.objects.filter(
+            group=group,
+            decidable_option__decidable=decidable,
+            passed_flag=True
+        ).count()
+
+    def get_group_num_winners(self,obj):
+        group = self.context.get('group')
+        decidable = obj
+        return models.GroupDecidableOptionAccess.objects.filter(
+            group=group,
+            decidable_option__decidable=decidable,
+            winner=True
+        ).count()
+
+    def get_group_votes_count(self,obj):
+        group = self.context.get('group')
+        decidable = obj
+        return models.GroupUserDecidableOptionVote.objects.filter(
+            group_user__group=group,
+            group_decidable_option_access__decidable_option__decidable=decidable
+        ).distinct().count()
+
+    def get_group_voter_count(self,obj):
+        group = self.context.get('group')
+        decidable = obj
+
+        from flowback.group.models import GroupUser
+        return GroupUser.objects.filter(
+            group=group,
+            active=True,
+            group_user_decidable_option_vote__group_decidable_option_access__group=group,
+            group_user_decidable_option_vote__group_decidable_option_access__decidable_option__decidable=decidable,
+        ).distinct().count()
+
+    def get_group_user_count(self,obj):
+        group = self.context.get('group')
+        return group.group_users.filter(
+            active=True
+        ).count()
+
+
+    def get_state(self,obj):
+        group_decidable_access = self.context.get('group_decidable_access')
+        return group_decidable_access.state
+    
+    class Meta:
+        model = models.Decidable
+        fields = "__all__"
+
+
 # List Serializers
 class DecidableListSerializer(serializers.ModelSerializer):
     attachments = serializers.SerializerMethodField()
-    available_actions = serializers.SerializerMethodField()
     poll_rank = serializers.IntegerField(read_only=True)
     votes = serializers.IntegerField(read_only=True)
     user_vote = serializers.IntegerField(read_only=True)
@@ -213,13 +270,6 @@ class DecidableListSerializer(serializers.ModelSerializer):
     def get_rank(self,obj):
         return getattr(obj,'rank',None)
 
-    def get_available_actions(self,obj):
-        request = self.context.get('request')
-        if not request or not request.user.is_authenticated:
-            return []
-        return obj.fsm.get_available_actions(
-            user=request.user
-        )
     
     def get_attachments(self,obj):
         return AttachmentDetailSerializer(instance=obj.attachments,many=True).data
@@ -241,6 +291,9 @@ class OptionListSerializer(serializers.ModelSerializer):
     tags = serializers.SerializerMethodField()
     quorum = serializers.IntegerField(read_only=True)
     approval = serializers.IntegerField(read_only=True)
+    passed_flag = serializers.BooleanField(read_only=True)
+    passed_timestamp = serializers.DateTimeField(read_only=True)
+    winner = serializers.BooleanField(read_only=True)
 
     def get_tags(self,obj):
         decidable = self.context.get('decidable')
@@ -345,3 +398,9 @@ class AttachmentCreateSerializer(serializers.ModelSerializer):
         model = models.Attachment
         fields = "__all__"
 
+
+
+class DecidableSnapshotSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.GroupDecidableAccess
+        fields = "__all__"

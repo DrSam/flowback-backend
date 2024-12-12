@@ -34,6 +34,9 @@ class GroupDecidableAccess(TimeStampedModel):
         'group.GroupUser',
         through='decidables.GroupUserDecidableVote'
     )
+    won_type = models.CharField(max_length=32,default='',blank=True)
+    state = models.CharField(max_length=32, blank=True,choices=DecidableStateChoices.choices,default=DecidableStateChoices.NOT_STARTED)
+    snapshots = models.JSONField(default=list,blank=True)
 
     def __str__(self):
         return f'{self.decidable} - {self.group}'
@@ -130,6 +133,9 @@ class Decidable(TimeStampedModel,TitleDescriptionModel):
     end_date = models.DateField(null=True,blank=True)
     confirmed = models.BooleanField(default=False)
 
+    closes_on_end_date = models.BooleanField(default=False)
+    closes_on_finalization_period = models.BooleanField(default=False)
+
     def get_root_decidable(self):
         return self.root_decidable or self
 
@@ -159,6 +165,11 @@ class GroupDecidableOptionAccess(TimeStampedModel):
     quorum = models.IntegerField(default=0,blank=True)
     approval = models.IntegerField(default=0,blank=True)
 
+    passed_flag = models.BooleanField(default=False)
+    passed_timestamp = models.DateTimeField(null=True,blank=True)
+
+    winner = models.BooleanField(default=False,blank=True)
+
     def __str__(self):
         return f'{self.decidable_option} - {self.group}'
 
@@ -182,6 +193,7 @@ class DecidableOption(TimeStampedModel):
     )
     # What tags will the option have, assuming parent decidable requires them
     tags = models.JSONField(blank=True,default=list)
+    
 
     def __str__(self):
         return f'{self.option} - {self.decidable}'
