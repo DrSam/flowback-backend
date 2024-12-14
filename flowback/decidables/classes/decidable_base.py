@@ -3,7 +3,7 @@ from feed.fields import ChannelTypechoices
 from flowback.user.models import User
 from flowback.decidables import models as decidable_models
 from flowback.decidables import fields as decidable_fields
-
+from flowback.group.models import GroupUser
 class BaseDecidable:
     decidable_type = None
     decidable = None
@@ -24,29 +24,35 @@ class BaseDecidable:
             self.decidable.root_decidable = self.decidable.parent_option.root_decidable
             self.decidable.save()
         
+        
         if self.decidable.root_decidable:
             self.decidable.confirmed = self.decidable.root_decidable.confirmed
-            self.decidable.state = self.decidable.root_decidable.state
             self.decidable.save()
+            for group in self.decidable.groups.all():
+                root_group_decidable_access = self.decidable.root_decidable.group_decidable_access.get(group=group)
+                group_decidable_access = self.decidable.group_decidable_access.get(group=group)
+                group_decidable_access.root_group_decidable_access = root_group_decidable_access
+                group_decidable_access.state = root_group_decidable_access.state
+                group_decidable_access.save()
     
     def on_confirm(self):
         raise NotImplementedError('On confirm not implemented')
     
     def create_feed_channel(self):
-        channel = Channel.objects.create(
-            type=ChannelTypechoices.DECIDABLE,
-            title=f'{self.decidable.title} Feed',
-            decidable=self.decidable
-        )
-        
-        # Add Add all users in decidable groups to channel
-        users = list(
-            User.objects.filter(
-                group_users__group__in=self.decidable.groups.all()
+        for group_decidable_access in self.decidable.group_decidable_access.all():
+            channel = Channel.objects.create(
+                type=ChannelTypechoices.DECIDABLE,
+                title=f'{self.decidable.title} Feed'
             )
-        )
-        channel.participants.add(*users)
-    
+            group_decidable_access.feed_channel = channel
+            group_decidable_access.save()
+        
+            # Add Add all users in decidable groups to channel
+            group_users = GroupUser.objects.filter(
+                group__in=self.decidable.groups.all()
+            )
+            channel.participants.add(*group_users)
+        
     def create_linkfile_poll(self):
         linkfile_poll = decidable_models.Decidable.objects.create(
             title = f'linkfile poll for {self.decidable.title}',

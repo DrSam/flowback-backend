@@ -91,7 +91,10 @@ class DecidableDetailSerializer(serializers.ModelSerializer):
 
     def get_feed_channel(self,obj):
         from feed.serializers import ChannelSerializer
-        return ChannelSerializer(instance=obj.feed_channel).data if hasattr(obj,'feed_channel') else None
+        group_decidable_access = self.context.get('group_decidable_access')
+        if not group_decidable_access:
+            return
+        return ChannelSerializer(instance=group_decidable_access.feed_channel).data
 
     def get_options(self,obj):
         return OptionListSerializer(instance=obj.options,many=True).data
@@ -124,7 +127,10 @@ class OptionDetailSerializer(serializers.ModelSerializer):
 
     def get_feed_channel(self,obj):
         from feed.serializers import ChannelSerializer
-        return ChannelSerializer(instance=obj.feed_channel).data if hasattr(obj,'feed_channel') else None
+        group_decidable_option_access = self.context.get('group_decidable_option_access')
+        if not group_decidable_option_access:
+            return
+        return ChannelSerializer(instance=group_decidable_option_access.feed_channel).data
 
     def get_bread_crumb(self,obj):
         decidable = obj.decidables.filter(primary_decidable__isnull=True).first()

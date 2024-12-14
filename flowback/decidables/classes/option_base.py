@@ -3,7 +3,7 @@ from flowback.decidables import fields as decidable_fields
 from feed.models import Channel
 from feed.fields import ChannelTypechoices
 from flowback.user.models import User
-
+from flowback.group.models import GroupUser
 
 class BaseOption:
     option = None
@@ -45,16 +45,20 @@ class BaseOption:
         linkfile_poll.groups.set(list(self.decidable.get_root_decidable().groups.values_list('id',flat=True)))
         
     def create_feed_channel(self):
-        channel = Channel.objects.create(
-            type=ChannelTypechoices.OPTION,
-            title=f'{self.option.title} Feed',
-            option=self.option
+        decidable_option = self.option.decidable_option.get(
+            decidable=self.decidable
         )
 
-        # Add Add all users in decidable groups to channel
-        users = list(
-            User.objects.filter(
-                group_users__group__in=self.decidable.groups.all()
+        for group_decidable_option_access in decidable_option.group_decidable_option_access.all():
+            channel = Channel.objects.create(
+                type=ChannelTypechoices.OPTION,
+                title=f'{self.decidable.title} Feed'
             )
-        )
-        channel.participants.add(*users)
+            group_decidable_option_access.feed_channel = channel
+            group_decidable_option_access.save()
+        
+            # Add Add all users in decidable groups to channel
+            group_users = GroupUser.objects.filter(
+                group__in=decidable_option.groups.all()
+            )
+            channel.participants.add(*group_users)

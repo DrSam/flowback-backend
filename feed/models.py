@@ -15,64 +15,21 @@ class Channel(BaseModel):
     title = models.CharField(max_length=255, null=True, blank=True)
     type = models.CharField(max_length=64, choices=ChannelTypechoices.choices)
 
-    group = models.ForeignKey(
-        'group.Group',
-        related_name='feed_channels',
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True
-    )
-    topic = models.OneToOneField(
-        'group.Topic',
-        related_name='feed_channel',
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True
-    )
-    decidable = models.OneToOneField(
-        'decidables.Decidable',
-        related_name='feed_channel',
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True
-    )
-    option = models.OneToOneField(
-        'decidables.Option',
-        related_name='feed_channel',
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True
-    )
     participants = models.ManyToManyField(
-        User,
+        'group.GroupUser',
         related_name='feed_channels',
         through='feed.ChannelParticipant'
     )
 
     # TODO: Triggers can be used to limit what decidables and options can have channels
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(
-                fields=['group'],
-                name='one_chat_per_group',
-                condition=Q(group__isnull=False) & Q(topic__isnull=True)
-            )
-        ]
-        triggers = [
-            pgtrigger.Protect(
-                name='no_topic_without_group',
-                operation=pgtrigger.Insert | pgtrigger.Update,
-                condition=pgtrigger.Q(new__group__isnull=True, new__topic__isnull=False)
-            )
-        ]
     
     def __str__(self):
         return self.title
     
 
 class ChannelParticipant(BaseModel):
-    user = models.ForeignKey(
-        User,
+    group_user = models.ForeignKey(
+        'group.GroupUser',
         related_name='feed_channel_participants',
         on_delete=models.CASCADE
     )
@@ -84,15 +41,8 @@ class ChannelParticipant(BaseModel):
     active = models.BooleanField(default=True)
 
     def __str__(self):
-        return f'{self.channel} - {self.user.get_full_name()}'
+        return f'{self.channel} - {self.group_user.user.get_full_name()}'
 
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(
-                fields=['user','channel'],
-                name='user_joins_chat_once',
-            )
-        ]
 
 
 class Message(BaseModel, TreeNode):

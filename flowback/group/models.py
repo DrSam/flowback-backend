@@ -65,6 +65,14 @@ class Group(BaseModel):
 
     jitsi_room = models.UUIDField(unique=True, default=uuid.uuid4)
 
+    feed_channel = models.OneToOneField(
+        'feed.Channel',
+        related_name='group',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
+
     class Meta:
         constraints = [models.CheckConstraint(check=~Q(Q(public=False) & Q(direct_join=True)),
                                               name='group_not_public_and_direct_join_check')]
@@ -81,6 +89,13 @@ class Topic(BaseModel):
     )
     name = models.CharField(max_length=256)
     description = models.TextField(blank=True, default='')
+    feed_channel = models.OneToOneField(
+        'feed.Channel',
+        related_name='topic',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=['group', 'name'], name='group_unique_topics')]

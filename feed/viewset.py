@@ -53,7 +53,7 @@ class MessageViewSet(
 
         channel_participant = ChannelParticipant.objects.filter(
             channel=channel,
-            user=user,
+            group_user__user=user,
             active=True
         ).first()
 

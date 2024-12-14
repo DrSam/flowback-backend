@@ -424,6 +424,8 @@ class OptionViewSet(
         context = super().get_serializer_context()
         context['group'] = self.get_group()
         context['decidable'] = self.get_decidable()
+        context['group_decidable_option_access'] = self.get_group_decidable_option_access()
+        
         return context
 
     def get_object(self):
@@ -465,6 +467,19 @@ class OptionViewSet(
         decidable = decidable_models.Decidable.objects.get(id=decidable_id)
         self._decidable = decidable
         return self._decidable
+
+    def get_group_decidable_option_access(self):
+        if not self.detail:
+            return
+        group = self.get_group()
+        decidable = self.get_decidable()
+        option = self.get_object()
+        group_decidable_option_access = group.group_decidable_option_access.filter(
+            decidable_option__decidable=decidable,
+            decidable_option__option=option,
+        ).first()
+        return group_decidable_option_access
+        
 
     def get_options_rank(self,main_queryset):
         queryset = decidable_models.Option.objects.filter(
