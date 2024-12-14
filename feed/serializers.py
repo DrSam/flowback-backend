@@ -4,7 +4,7 @@ from feed.models import Attachment
 from feed.models import Channel
 from feed.models import ChannelParticipant
 from flowback.user.models import User
-
+from flowback.group.serializers import GroupUserSerializer
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -12,19 +12,22 @@ class UserSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 class ChannelSerializer(serializers.ModelSerializer):
-    group = serializers.SerializerMethodField()
-
-    def get_group(self,obj):
-        from flowback.group.serializers import BasicGroupSerializer
-        return BasicGroupSerializer(obj.group).data
 
     class Meta:
         model = Channel
         fields = "__all__"
 
 
+
+class ChannelBasicSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Channel
+        exclude = ['participants']
+
+
 class ChannelParticipantSerializer(serializers.ModelSerializer):
-    user = UserSerializer()
+    group_user = GroupUserSerializer()
     channel = ChannelSerializer()
 
     class Meta:

@@ -116,7 +116,7 @@ class GroupViewSet(
         
         group = serializer.save(created_by=request.user)
 
-        GroupUser.objects.create(
+        group_user = GroupUser.objects.create(
             group=group,
             user=request.user,
             is_admin=True
@@ -125,9 +125,11 @@ class GroupViewSet(
         channel = Channel.objects.create(
             type = ChannelTypechoices.GROUP,
             title = group.name,
-            group=group
         )
-        channel.participants.add(request.user)
+        group.feed_channel = channel
+        group.save()
+
+        channel.participants.add(group_user)
 
         return Response("OK",status.HTTP_201_CREATED)
 

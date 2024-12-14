@@ -38,6 +38,25 @@ class GroupDecidableAccess(TimeStampedModel):
     state = models.CharField(max_length=32, blank=True,choices=DecidableStateChoices.choices,default=DecidableStateChoices.NOT_STARTED)
     snapshots = models.JSONField(default=list,blank=True)
 
+    root_group_decidable_access = models.ForeignKey(
+        'self',
+        related_name='descendent_group_decidable_access',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True
+    )
+
+    feed_channel = models.ForeignKey(
+        'feed.Channel',
+        related_name='group_decidables',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
+
+    def get_root_decidable(self):
+        return self.root_group_decidable_access or self
+
     def __str__(self):
         return f'{self.decidable} - {self.group}'
 
@@ -103,10 +122,6 @@ class Decidable(TimeStampedModel,TitleDescriptionModel):
         blank=True
     )
 
-    @property
-    def is_root_decidable(self):
-        return not bool(self.root_decidable)
-    
     # Depending on deciable type, code logic will be required to setup decidable properly
     decidable_type = models.CharField(max_length=256,choices=DecidableTypeChoices.choices)
     voting_type = models.CharField(max_length=64, choices=VoteTypeChoices.choices,default=VoteTypeChoices.RATING)
@@ -169,6 +184,14 @@ class GroupDecidableOptionAccess(TimeStampedModel):
     passed_timestamp = models.DateTimeField(null=True,blank=True)
 
     winner = models.BooleanField(default=False,blank=True)
+
+    feed_channel = models.OneToOneField(
+        'feed.Channel',
+        related_name='group_decidable_option',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
 
     def __str__(self):
         return f'{self.decidable_option} - {self.group}'
