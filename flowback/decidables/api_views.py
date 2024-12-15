@@ -245,6 +245,33 @@ class DecidableViewSet(ModelViewSet):
 
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
+    def update(self, request, *args, **kwargs):
+        parser = NestedParser(request.data)
+        if not parser.is_valid():
+            return Response(parser.errors,status.HTTP_200_OK)
+        
+        data = parser.validate_data
+        attachments = data.pop('attachments',[])
+
+        partial = kwargs.pop('partial', False)
+        decidable = self.get_object()
+        serializer = self.get_serializer(decidable, data=data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+
+        for attachment in attachments:
+            attachment['decidable'] = decidable.id
+
+        attachment_serializer = decidable_serializers.AttachmentCreateSerializer(data=attachments,many=True)
+        if attachment_serializer.is_valid():
+            attachment_serializer.save()
+
+        if getattr(decidable, '_prefetched_objects_cache', None):
+            decidable._prefetched_objects_cache = {}
+
+        return Response(serializer.data)
+
+
     @action(
         detail=True,
         methods=['POST']
@@ -588,6 +615,40 @@ class OptionViewSet(
         if decidable.get_root_decidable().confirmed:
             after_option_create(option.id,decidable.id)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+    def update(self, request, *args, **kwargs):
+        decidable = self.get_decidable()
+
+        if decidable.decidable_type == 'aspect':
+            raise Exception('Cannot edit an option')
+
+        parser = NestedParser(request.data)
+        if not parser.is_valid():
+            return Response(parser.errors,status.HTTP_200_OK)
+
+        data = parser.validate_data
+        attachments = data.pop('attachments',[])
+        tags = data.pop('tags',[])
+
+        partial = kwargs.pop('partial', False)
+        option = self.get_object()
+        serializer = self.get_serializer(option, data=data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+
+        # Add attachments
+        for attachment in attachments:
+            attachment['option'] = option.id
+        
+        attachment_serializer = decidable_serializers.AttachmentCreateSerializer(data=attachments,many=True)
+        if attachment_serializer.is_valid():
+            attachment_serializer.save()
+        
+        if getattr(option, '_prefetched_objects_cache', None):
+            option._prefetched_objects_cache = {}
+
+        return Response(serializer.data)
 
     @action(
         detail=True,
