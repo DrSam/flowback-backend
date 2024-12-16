@@ -24,10 +24,10 @@ class BaseDecidable:
             self.decidable.root_decidable = self.decidable.parent_option.root_decidable
             self.decidable.save()
         
-        
         if self.decidable.root_decidable:
             self.decidable.confirmed = self.decidable.root_decidable.confirmed
             self.decidable.save()
+            self.on_confirm()
             for group in self.decidable.groups.all():
                 root_group_decidable_access = self.decidable.root_decidable.group_decidable_access.get(group=group)
                 group_decidable_access = self.decidable.group_decidable_access.get(group=group)
@@ -63,9 +63,14 @@ class BaseDecidable:
             voting_type=decidable_fields.VoteTypeChoices.APPROVAL,
             members_can_add_options=True,
             confirmed=True,
-            state=self.decidable.get_root_decidable().state
         )
         linkfile_poll.groups.set(list(self.decidable.get_root_decidable().groups.values_list('id',flat=True)))
+        for group_decidable_access in linkfile_poll.group_decidable_access.all():
+            parent_group_decidable_access = linkfile_poll.parent_decidable.group_decidable_access.get(
+                group=group_decidable_access.group
+            )
+            group_decidable_access.state = parent_group_decidable_access.state
+            group_decidable_access.save()
     
     def on_option_create(self,option):
         raise NotImplementedError('On option create not implemented')
