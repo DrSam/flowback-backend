@@ -68,7 +68,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     kanban = models.ForeignKey('kanban.Kanban', on_delete=models.SET_NULL, null=True, blank=True)
 
     # Personal information
-    first_name = models.CharField( max_length=150, blank=False,default='Steve')
+    first_name = models.CharField( max_length=150, blank=False,default='')
     last_name = models.CharField(max_length=150, blank=True,default='')
     address = models.TextField(default='',blank=True)
     country = models.CharField(max_length=150, blank=True, default='')

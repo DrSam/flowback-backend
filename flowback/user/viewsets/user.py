@@ -73,10 +73,17 @@ class UserViewSet(
     @me.mapping.patch
     def set_me(self, request, *args, **kwargs):
         user = request.user
+        old_email = user.email
+
         serializer = self.get_serializer(instance=user,data=request.data,partial=True)
         if not serializer.is_valid():
             return Response(serializer.errors,status.HTTP_400_BAD_REQUEST)
         serializer.save()
+        user.refresh_from_db()
+        if user.email != old_email:
+            user.email_confirmed = False
+            user.save()
+            email_verification_email(user.id)
         return Response(serializer.data,status.HTTP_200_OK)
 
     @action(
