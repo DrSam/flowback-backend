@@ -223,7 +223,6 @@ class GroupUserInvitationViewSet(
 
         return Response("OK",status.HTTP_200_OK)
 
-
     @action(
         detail=True,
         methods=['POST'],
@@ -292,7 +291,7 @@ class GroupUserInvitationViewSet(
             external=True,
         )
         return Response("OK",status.HTTP_200_OK)
-        
+     
     @action(
         detail=True,
         methods=['POST'],
