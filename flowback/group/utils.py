@@ -6,7 +6,7 @@ from django.db.models import Q
 
 def add_user_to_group(group,user,admin=False):
     # Create group user
-    GroupUser.objects.update_or_create(
+    group_user,_ = GroupUser.objects.update_or_create(
         group=group,
         user=user,
         defaults={
@@ -29,7 +29,7 @@ def add_user_to_group(group,user,admin=False):
             )
             &
             Q(
-                decidable__groups=group
+                group_decidables__group=group
             )
         )
         |
@@ -39,13 +39,13 @@ def add_user_to_group(group,user,admin=False):
             )
             &
             Q(
-                option__decidables__groups=group
+                group_decidable_option__group=group
             )
         )
     )
 
     for channel in channels:
-        channel.participants.add(user)
+        channel.participants.add(group_user)
 
 
     

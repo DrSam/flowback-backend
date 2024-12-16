@@ -24,6 +24,7 @@ from flowback.user.models import User
 from django_q.tasks import async_task
 from flowback.group.tasks import share_group_with_user
 from flowback.group.tasks import share_group_with_email
+from flowback.group.utils import add_user_to_group
 import re
 
 def is_valid_email(email):
@@ -203,8 +204,21 @@ class GroupViewSet(
                 request.user.id
             )
         
-
-
-            
+          
         return Response("OK",status.HTTP_200_OK)
+
+    @action(
+        detail=True,
+        methods=['POST']
+    )
+    def join(self, request, *args, **kwargs):
+        group = self.get_object()
+        user = request.user
+        if not group.direct_join:
+            return Response("Need an invitation",status.HTTP_401_UNAUTHORIZED)
+        
+        add_user_to_group(group,user)
+
+        return Response("OK",status.HTTP_200_OK)
+
 
