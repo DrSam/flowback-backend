@@ -253,6 +253,14 @@ class DecidableListSerializer(serializers.ModelSerializer):
     option_count = serializers.SerializerMethodField()
     channel_feed = serializers.SerializerMethodField()
     total_poll_count = serializers.IntegerField(read_only=True)
+    state = serializers.SerializerMethodField()
+    
+    def get_state(self,obj):
+        group_decidable_access = self.context.get('group_decidable_access')
+        if not group_decidable_access:
+            group = self.context.get('group')
+            group_decidable_access = obj.group_decidable_access.get(group=group)
+        return group_decidable_access.state
 
     def get_channel_feed(self,obj):
         return obj.channel_feed if hasattr(obj,'channel_feed') else None
