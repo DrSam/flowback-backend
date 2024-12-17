@@ -49,8 +49,9 @@ class Group(BaseModel):
                                               blank=True,
                                               on_delete=models.SET_NULL)
 
-    name = models.TextField(unique=True)
-    description = models.TextField(null=True, blank=True)
+    name = models.TextField(unique=True,max_length=120)
+    description = models.TextField(blank=True,default='',max_length=240)
+    long_description = models.TextField(blank=True, default='',max_length=1600)
     image = models.ImageField(upload_to='group/image', null=True, blank=True)
     cover_image = models.ImageField(upload_to='group/cover_image', null=True, blank=True)
     hide_poll_users = models.BooleanField(default=False)  # Hides users in polls, TODO remove bool from views
