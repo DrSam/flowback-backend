@@ -9,8 +9,9 @@ from flowback.decidables.fields import DecidableStateChoices
 
 
 class TitleDescriptionModel(models.Model):
-    title = models.CharField(max_length=128, blank=True,default='')
-    description = models.CharField(max_length=1024,blank=True,default='')
+    title = models.CharField(max_length=120, blank=True,default='')
+    description = models.CharField(max_length=240,blank=True,default='')
+    long_description = models.CharField(max_length=1600,blank=True,default='')
 
     class Meta:
         abstract=True
