@@ -54,8 +54,11 @@ class BaseDecidable:
             channel.participants.add(*group_users)
         
     def create_linkfile_poll(self):
+        title = f'linkfile poll for {self.decidable.title}'
+        if len(title)>120:
+            title = title[:117]+'...'
         linkfile_poll = decidable_models.Decidable.objects.create(
-            title = f'linkfile poll for {self.decidable.title}',
+            title = title,
             root_decidable = self.decidable.get_root_decidable(),
             parent_decidable = self.decidable,
             created_by = self.decidable.created_by,

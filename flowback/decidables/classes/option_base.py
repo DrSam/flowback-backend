@@ -15,8 +15,11 @@ class BaseOption:
 
 
     def create_reason_poll(self):
+        title = f'Reason poll for {self.option.title}'
+        if len(title)>120:
+            title = title[:117]+'...'
         reason_poll = decidable_models.Decidable.objects.create(
-            title = f'Reason poll for {self.option.title}',
+            title = title,
             root_decidable = self.decidable.get_root_decidable(),
             parent_option = self.option,
             created_by = self.decidable.created_by,
@@ -31,8 +34,12 @@ class BaseOption:
         reason_poll.groups.set(list(self.decidable.get_root_decidable().groups.values_list('id',flat=True)))
     
     def create_linkfile_poll(self):
+        title = f'linkfile poll for {self.option.title}'
+        if len(title)>120:
+            title = title[:117]+'...'
+        
         linkfile_poll = decidable_models.Decidable.objects.create(
-            title = f'linkfile poll for {self.option.title}',
+            title = title,
             root_decidable = self.decidable.get_root_decidable(),
             parent_option = self.option,
             created_by = self.decidable.created_by,
