@@ -49,11 +49,9 @@ def reset_decidable_votes(sender, instance, created, **kwargs):
     ).delete()
 
     GroupDecidableAccess.objects.filter(
-        decidable_option__option=instance
+        decidable=instance
     ).update(
         value=0,
-        quorum=0,
-        approval=0
     )
 
 @receiver(pre_delete, sender=Decidable)
