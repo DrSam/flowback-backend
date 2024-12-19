@@ -111,7 +111,11 @@ class GroupViewSet(
         return queryset
 
     def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
+        data = request.data
+        data['description'] = data['description'].replace('\r\n','\n')
+        data['long_description'] = data['long_description'].replace('\r\n','\n')
+
+        serializer = self.get_serializer(data=data)
         if not serializer.is_valid():
             return Response(serializer.errors,status.HTTP_400_BAD_REQUEST)
         
@@ -133,6 +137,26 @@ class GroupViewSet(
         channel.participants.add(group_user)
 
         return Response("OK",status.HTTP_201_CREATED)
+
+    def update(self, request, *args, **kwargs):
+        data = request.data.copy()
+        if 'description' in data:
+            data['description'] = data['description'].replace('\r\n','\n')
+        if 'long_description' in data:
+            data['long_description'] = data['long_description'].replace('\r\n','\n')
+
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+
+        if getattr(instance, '_prefetched_objects_cache', None):
+            # If 'prefetch_related' has been applied to a queryset, we need to
+            # forcibly invalidate the prefetch cache on the instance.
+            instance._prefetched_objects_cache = {}
+
+        return Response(serializer.data)
 
     @action(
         detail=True,
