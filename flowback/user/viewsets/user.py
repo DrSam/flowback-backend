@@ -282,3 +282,18 @@ class UserViewSet(
         user.email_confirmed = True
         user.save()
         return Response("OK",status.HTTP_200_OK)
+
+
+    @action(
+        detail=False,
+        methods=['POST'],
+        permission_classes = [AllowAny]
+    )
+    def resend(self, request, *args, **kwargs):
+        email = request.data.get('email')
+        user = User.objects.filter(email=email,email_confirmed=False).first()
+        if not user:
+            return Response("No user found",status.HTTP_400_BAD_REQUEST)
+        
+        email_verification_email(user.id)
+        return Response("OK",status.HTTP_200_OK)

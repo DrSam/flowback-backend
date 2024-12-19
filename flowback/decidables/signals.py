@@ -5,7 +5,9 @@ from django.dispatch import receiver
 from flowback.decidables.models import Decidable
 from flowback.decidables.models import Option
 from flowback.decidables.models import GroupUserDecidableOptionVote
+from flowback.decidables.models import GroupUserDecidableVote
 from flowback.decidables.models import GroupDecidableOptionAccess
+from flowback.decidables.models import GroupDecidableAccess
 
 @receiver(m2m_changed, sender=Decidable)
 def set_decidable_root(sender, instance, created, **kwargs):
@@ -31,6 +33,22 @@ def reset_option_votes(sender, instance, created, **kwargs):
     ).delete()
 
     GroupDecidableOptionAccess.objects.filter(
+        decidable_option__option=instance
+    ).update(
+        value=0,
+        quorum=0,
+        approval=0
+    )
+
+
+@receiver(post_save, sender=Decidable)
+def reset_decidable_votes(sender, instance, created, **kwargs):
+    # All votes for a decidable are reset when any change is made
+    GroupUserDecidableVote.objects.filter(
+        group_decidable_access__decidable=instance
+    ).delete()
+
+    GroupDecidableAccess.objects.filter(
         decidable_option__option=instance
     ).update(
         value=0,
