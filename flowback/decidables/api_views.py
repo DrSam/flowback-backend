@@ -222,6 +222,8 @@ class DecidableViewSet(ModelViewSet):
             return Response(parser.errors,status.HTTP_200_OK)
 
         data = parser.validate_data
+        data['description'] = data['description'].replace('\r\n','\n')
+        data['long_description'] = data['long_description'].replace('\r\n','\n')
         attachments = data.pop('attachments',[])
 
         serializer = self.get_serializer(data=data)
@@ -251,6 +253,11 @@ class DecidableViewSet(ModelViewSet):
             return Response(parser.errors,status.HTTP_200_OK)
         
         data = parser.validate_data
+
+        if 'description' in data:
+            data['description'] = data['description'].replace('\r\n','\n')
+        if 'long_description' in data:
+            data['long_description'] = data['long_description'].replace('\r\n','\n')
         attachments = data.pop('attachments',[])
 
         partial = kwargs.pop('partial', False)
@@ -569,6 +576,8 @@ class OptionViewSet(
             return Response(parser.errors,status.HTTP_200_OK)
 
         data = parser.validate_data
+        data['description'] = data['description'].replace('\r\n','\n')
+        data['long_description'] = data['long_description'].replace('\r\n','\n')
         attachments = data.pop('attachments',[])
         tags = data.pop('tags',[])
 
@@ -628,6 +637,10 @@ class OptionViewSet(
             return Response(parser.errors,status.HTTP_200_OK)
 
         data = parser.validate_data
+        if 'description' in data:
+            data['description'] = data['description'].replace('\r\n','\n')
+        if 'long_description' in data:
+            data['long_description'] = data['long_description'].replace('\r\n','\n')
         attachments = data.pop('attachments',[])
         tags = data.pop('tags',[])
 
