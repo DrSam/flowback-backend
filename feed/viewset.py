@@ -19,7 +19,7 @@ class FeedViewSetPermission(BasePermission):
 
     def has_object_permission(self, request, view, obj):
         if view.action == 'destroy':
-            return obj.channel_participant.user == request.user
+            return obj.channel_participant.group_user.user == request.user
         return super().has_object_permission(request,view,obj)
 
 
