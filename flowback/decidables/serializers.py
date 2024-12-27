@@ -66,10 +66,22 @@ class DecidableDetailSerializer(serializers.ModelSerializer):
     bread_crumb = serializers.SerializerMethodField()
     total_poll_count = serializers.IntegerField(read_only=True)
     state = serializers.SerializerMethodField()
+    primary_decidable = serializers.SerializerMethodField()
+
+    def get_primary_decidable(self,obj):
+        context=self.context
+        if obj.primary_decidable:
+            return DecidableDetailSerializer(
+                obj.primary_decidable,
+                context={
+                    'group':context.get('group')
+                }
+            ).data
     
     def get_state(self,obj):
         group_decidable_access = self.context.get('group_decidable_access')
-        return group_decidable_access.state
+        if group_decidable_access:
+            return group_decidable_access.state
 
     def get_linkfile_poll(self,obj):
         linkfile_poll = obj.child_decidables.filter(
@@ -78,8 +90,7 @@ class DecidableDetailSerializer(serializers.ModelSerializer):
         if not linkfile_poll:
             return
         return linkfile_poll.id
-        
-
+    
     def get_bread_crumb(self,obj):
         if obj.primary_decidable:
             return BreadCrumbDecidableSerializer(instance=obj.primary_decidable).data
@@ -88,7 +99,6 @@ class DecidableDetailSerializer(serializers.ModelSerializer):
         if obj.parent_option:
             return BreadCrumbOptionSerializer(instance=obj.parent_option).data
         
-
     def get_feed_channel(self,obj):
         from feed.serializers import ChannelSerializer
         group_decidable_access = self.context.get('group_decidable_access')
