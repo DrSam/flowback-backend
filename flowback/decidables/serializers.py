@@ -68,6 +68,23 @@ class DecidableDetailSerializer(serializers.ModelSerializer):
     state = serializers.SerializerMethodField()
     primary_decidable = serializers.SerializerMethodField()
 
+    def get_group_decidable_access(self,obj):
+        group_decidable_access = self.context.get('group_decidable_access')
+        if group_decidable_access:
+            return group_decidable_access
+        
+        group = self.context.get('group')
+        if not group:
+            return
+
+        group_decidable_access = models.GroupDecidableAccess.objects.filter(
+            group=group,
+            decidable=obj
+        ).first()
+        if not group_decidable_access:
+            return
+        return group_decidable_access
+
     def get_primary_decidable(self,obj):
         context=self.context
         if obj.primary_decidable:
@@ -79,7 +96,7 @@ class DecidableDetailSerializer(serializers.ModelSerializer):
             ).data
     
     def get_state(self,obj):
-        group_decidable_access = self.context.get('group_decidable_access')
+        group_decidable_access = self.get_group_decidable_access(obj)
         if group_decidable_access:
             return group_decidable_access.state
 
@@ -92,6 +109,9 @@ class DecidableDetailSerializer(serializers.ModelSerializer):
         return linkfile_poll.id
     
     def get_bread_crumb(self,obj):
+        if not self.context.get('is_stump',True):
+            return
+        
         if obj.primary_decidable:
             return BreadCrumbDecidableSerializer(instance=obj.primary_decidable).data
         if obj.parent_decidable:
@@ -101,7 +121,7 @@ class DecidableDetailSerializer(serializers.ModelSerializer):
         
     def get_feed_channel(self,obj):
         from feed.serializers import ChannelSerializer
-        group_decidable_access = self.context.get('group_decidable_access')
+        group_decidable_access = self.get_group_decidable_access(obj)
         if not group_decidable_access:
             return
         return ChannelSerializer(instance=group_decidable_access.feed_channel).data
@@ -111,7 +131,6 @@ class DecidableDetailSerializer(serializers.ModelSerializer):
 
     def get_attachments(self,obj):
         return AttachmentDetailSerializer(instance=obj.attachments,many=True).data
-
 
     def get_option_count(self,obj):
         return obj.options.count()
@@ -135,14 +154,35 @@ class OptionDetailSerializer(serializers.ModelSerializer):
     quorum = serializers.IntegerField(read_only=True)
     approval = serializers.IntegerField(read_only=True)
 
+    def get_group_decidable_option_access(self,obj):
+        group_decidable_option_access = self.context.get('group_decidable_option_access')
+        if group_decidable_option_access:
+            return
+        group = self.context.get('group')
+        if not group:
+            return
+        decidable = self.context.get('decidable')
+        if not decidable:
+            return
+        group_decidable_option_access = models.GroupDecidableOptionAccess.objects.filter(
+            group = group,
+            decidable_option__decidable=decidable,
+            decidable_option__option = obj
+        ).first()
+        if not group_decidable_option_access:
+            return
+        return group_decidable_option_access
+
     def get_feed_channel(self,obj):
         from feed.serializers import ChannelSerializer
-        group_decidable_option_access = self.context.get('group_decidable_option_access')
+        group_decidable_option_access = self.get_group_decidable_option_access(obj)
         if not group_decidable_option_access:
             return
         return ChannelSerializer(instance=group_decidable_option_access.feed_channel).data
 
     def get_bread_crumb(self,obj):
+        if not self.context.get('is_stump',True):
+            return
         decidable = obj.decidables.filter(primary_decidable__isnull=True).first()
         return BreadCrumbDecidableSerializer(instance=decidable).data
 
@@ -156,7 +196,13 @@ class OptionDetailSerializer(serializers.ModelSerializer):
         reason_poll = obj.child_decidables.filter(
             decidable_type=DecidableTypeChoices.REASONPOLL
         ).first()
-        return DecidableStumpSerializer(instance=reason_poll).data
+        return DecidableDetailSerializer(
+            instance=reason_poll,
+            context={
+                'group':self.context.get('group'),
+                'is_stump':True
+            }
+        ).data
 
     class Meta:
         model = models.Option
@@ -308,7 +354,13 @@ class OptionListSerializer(serializers.ModelSerializer):
     def get_reason_decidable(self,obj):
         if obj.child_decidables.filter(decidable_type='reason').exists():
             decidable = obj.child_decidables.filter(decidable_type='reason').first()
-            return DecidableStumpSerializer(decidable).data
+            return DecidableDetailSerializer(
+                decidable,
+                context={
+                    'group':self.context.get('group'),
+                    'is_stump':True
+                }
+            ).data
 
     def get_tags(self,obj):
         decidable = self.context.get('decidable')
@@ -334,7 +386,14 @@ class DecidableCreateSerializer(serializers.ModelSerializer):
     options = serializers.SerializerMethodField()
 
     def get_options(self,obj):
-        return OptionListSerializer(instance=obj.options,many=True).data
+        return OptionListSerializer(
+            instance=obj.options,many=True,
+            context={
+                'group':self.context.get('group'),
+                'decidable':obj,
+                'is_stump':True
+            }
+        ).data
 
     def get_attachments(self,obj):
         return AttachmentDetailSerializer(instance=obj.attachments,many=True).data

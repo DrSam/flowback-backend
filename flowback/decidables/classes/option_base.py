@@ -29,9 +29,17 @@ class BaseOption:
             tags=['for','against','neutral'],
             members_can_add_options=True,
             confirmed=True,
-            state=self.decidable.get_root_decidable().state
         )
         reason_poll.groups.set(list(self.decidable.get_root_decidable().groups.values_list('id',flat=True)))
+
+        for group in self.decidable.groups.all():
+                root_group_decidable_access = self.decidable.get_root_decidable().group_decidable_access.get(group=group)
+                group_decidable_access = reason_poll.group_decidable_access.get(group=group)
+                group_decidable_access.root_group_decidable_access = root_group_decidable_access
+                print('--A--')
+                print(root_group_decidable_access.state)
+                group_decidable_access.state = root_group_decidable_access.state
+                group_decidable_access.save()
     
     def create_linkfile_poll(self):
         title = f'linkfile poll for {self.option.title}'
