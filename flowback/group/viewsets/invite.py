@@ -241,24 +241,26 @@ class GroupUserInvitationViewSet(
         group_invite.status = GroupUserInviteStatusChoices.WITHDRAWN
         group_invite.save()
 
-        channel_layer = get_channel_layer()
-        async_to_sync(
-            channel_layer.group_send
-        )(
-            f'user_{group_invite.user.id}',
-            {
-                'type':'send_stuff',
-                'data':{
-                    'type':'notification',
+        if group_invite.user:
+            channel_layer = get_channel_layer()
+            async_to_sync(
+                channel_layer.group_send
+            )(
+                f'user_{group_invite.user.id}',
+                {
+                    'type':'send_stuff',
                     'data':{
-                        'type':'withdraw_invite',
-                        'group_name':group.name,
-                        'group_id':group.id,
-                        'initiator':request.user.get_full_name()
+                        'type':'notification',
+                        'data':{
+                            'type':'withdraw_invite',
+                            'group_name':group.name,
+                            'group_id':group.id,
+                            'initiator':request.user.get_full_name()
+                        }
                     }
                 }
-            }
-        )
+            )
+        
         return Response("OK",status.HTTP_200_OK)
     
     @action(
