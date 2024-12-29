@@ -118,11 +118,13 @@ class GroupUserInvitationViewSet(
 
         # Create invites for non-users
         for email in emails:
-            GroupUserInvite.objects.create(
+            GroupUserInvite.objects.get_or_create(
                 email=email,
                 group=group,
                 external=False,
-                initiator=request.user
+                defaults={
+                    'initiator':request.user
+                }
             )
             # Send email for invited users
             invite_email_to_group(group.id,email,request.user.id)
