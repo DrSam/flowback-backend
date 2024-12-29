@@ -271,7 +271,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
     def get_last_chats(self,channel_id):
         from feed.models import Message
         from feed.serializers import MessageSerializer
-        chats = Message.objects.filter(channel_participant__channel_id=channel_id).order_by('-created_at')[:25]
+        chats = Message.objects.filter(channel_participant__channel_id=channel_id).order_by('created_at')[:25]
         return MessageSerializer(chats,many=True,context={'user':self.user}).data
 
     async def send_stuff(self,event):
