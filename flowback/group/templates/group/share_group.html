@@ -7,7 +7,12 @@
 </p>
 <p>
     <span style="font-weight: bold;">{{request_user.first_name}}</span>
-    wants to share the following community with you: <a href="{{site_url}}/community/{{group.id}}">
-        <span style="font-weight: bold;">{{group.name}}</span></a>. 
+    wants to share the following community with you: 
+    {% if take_to_signup %}
+    <a href="{{site_url}}/register">
+    {% else %}
+    <a href="{{site_url}}/community/{{group.id}}">
+    {% endif %}
+    <span style="font-weight: bold;">{{group.name}}</span></a>. 
 </p>
 {% endblock %}

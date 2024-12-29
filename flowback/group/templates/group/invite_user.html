@@ -7,7 +7,12 @@
 </p>
 <p>
     <span style="font-weight: bold;">{{request_user.first_name}}</span>
-    Is inviting you to join : <a href="{{site_url}}/community/{{group.id}}">
-        <span style="font-weight: bold;">{{group.name}}</span></a>. 
+    Is inviting you to join : 
+    {% if take_to_signup %}
+    <a href="{{site_url}}/register">
+    {% else %}
+    <a href="{{site_url}}/community/{{group.id}}">
+    {% endif %}
+    <span style="font-weight: bold;">{{group.name}}</span></a>. 
 </p>
 {% endblock %}

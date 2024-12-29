@@ -8,6 +8,17 @@ from django.contrib.auth.password_validation import validate_password
 
 
 class BasicUserSerializer(serializers.ModelSerializer):
+    has_pending_invite = serializers.SerializerMethodField()
+
+    def get_has_pending_invite(self,user):
+        from flowback.group.models import GroupUserInvite
+        from flowback.group.fields import GroupUserInviteStatusChoices
+        return GroupUserInvite.objects.filter(
+            user=user,
+            status=GroupUserInviteStatusChoices.PENDING
+        ).exists()
+
+        
     class Meta:
         model = User
         fields = "__all__"

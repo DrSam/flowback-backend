@@ -16,7 +16,8 @@ def share_group_with_user(group_id,user_id,request_user_id):
             'group':group,
             'user':user,
             'request_user':request_user,
-            'site_url':SITE_URL
+            'site_url':SITE_URL,
+            'take_to_signup':False
         }
     )
     send_mail(
@@ -40,7 +41,8 @@ def share_group_with_email(group_id,email,request_user_id):
             'group':group,
             'user':user,
             'request_user':request_user,
-            'site_url':SITE_URL
+            'site_url':SITE_URL,
+            'take_to_signup':True
         }
     )
     send_mail(
@@ -61,7 +63,8 @@ def invite_user_to_group(group_id,user_id,request_user_id):
             'group':group,
             'user':user,
             'request_user':request_user,
-            'site_url':SITE_URL
+            'site_url':SITE_URL,
+            'take_to_signup':False
         }
     )
     send_mail(
@@ -85,7 +88,8 @@ def invite_email_to_group(group_id,email,request_user_id):
             'group':group,
             'user':user,
             'request_user':request_user,
-            'site_url':SITE_URL
+            'site_url':SITE_URL,
+            'take_to_signup':True
         }
     )
     send_mail(
