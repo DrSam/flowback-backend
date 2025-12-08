@@ -24,14 +24,12 @@ jobs:
             echo "deploy_dir=/root/forby/backend/production" >> $GITHUB_OUTPUT
             echo "container_name=forby-backend-prod" >> $GITHUB_OUTPUT
             echo "branch=master" >> $GITHUB_OUTPUT
-            echo "db_name=forby_production" >> $GITHUB_OUTPUT
           elif [ "${{ github.ref_name }}" == "testing-server" ]; then
             echo "environment=staging" >> $GITHUB_OUTPUT
             echo "server_ip=104.248.80.243" >> $GITHUB_OUTPUT
             echo "deploy_dir=/root/forby/backend/flowback-backend" >> $GITHUB_OUTPUT
             echo "container_name=forby-backend" >> $GITHUB_OUTPUT
             echo "branch=testing-server" >> $GITHUB_OUTPUT
-            echo "db_name=forby_test" >> $GITHUB_OUTPUT
           fi
 
       - name: Setup SSH
@@ -51,11 +49,8 @@ jobs:
           DEPLOY_DIR: ${{ steps.deployment.outputs.deploy_dir }}
           CONTAINER_NAME: ${{ steps.deployment.outputs.container_name }}
           BRANCH: ${{ steps.deployment.outputs.branch }}
-          DB_NAME: ${{ steps.deployment.outputs.db_name }}
-          REPO: ${{ github.repository }}
         run: |
-          ssh root@${{ steps.deployment.outputs.server_ip }} << 'ENDSSH'
-
+          ssh root@${{ steps.deployment.outputs.server_ip }} << 'EOF'
             # Navigate to deployment directory
             cd "$DEPLOY_DIR"
 
@@ -76,7 +71,13 @@ jobs:
             docker rm $CONTAINER_NAME || true
 
             # Start new container with updated code
-            docker run -d               --name $CONTAINER_NAME               --restart unless-stopped               -p 8000:8000               -v /root/forby_backend_env_backup.txt:/app/.env               $CONTAINER_NAME               gunicorn backend.wsgi:application --bind 0.0.0.0:8000
+            docker run -d \
+              --name $CONTAINER_NAME \
+              --restart unless-stopped \
+              -p 8000:8000 \
+              -v /root/forby_backend_env_backup.txt:/app/.env \
+              $CONTAINER_NAME \
+              gunicorn backend.wsgi:application --bind 0.0.0.0:8000
 
             # Wait for container to start
             sleep 5
@@ -92,6 +93,4 @@ jobs:
             fi
 
             echo "Deployment successful! Container $CONTAINER_NAME is running."
-
-ENDSSH
-
+          EOF
