@@ -1,19 +1,38 @@
-name: Deploy to DigitalOcean Droplet
+name: Deploy Backend to DigitalOcean Droplet
 
 on:
   push:
     branches:
       - testing-server
+      - master
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-
+    timeout-minutes: 15
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Determine deployment target
+        id: deployment
+        run: |
+          if [ "${{ github.ref_name }}" == "master" ]; then
+            echo "environment=production" >> $GITHUB_OUTPUT
+            echo "server_ip=${{ secrets.PRODUCTION_SERVER_IP }}" >> $GITHUB_OUTPUT
+            echo "deploy_dir=/root/forby/backend/production" >> $GITHUB_OUTPUT
+            echo "container_name=forby-backend-prod" >> $GITHUB_OUTPUT
+            echo "branch=master" >> $GITHUB_OUTPUT
+            echo "db_name=forby_production" >> $GITHUB_OUTPUT
+          elif [ "${{ github.ref_name }}" == "testing-server" ]; then
+            echo "environment=staging" >> $GITHUB_OUTPUT
+            echo "server_ip=104.248.80.243" >> $GITHUB_OUTPUT
+            echo "deploy_dir=/root/forby/backend/flowback-backend" >> $GITHUB_OUTPUT
+            echo "container_name=forby-backend" >> $GITHUB_OUTPUT
+            echo "branch=testing-server" >> $GITHUB_OUTPUT
+            echo "db_name=forby_test" >> $GITHUB_OUTPUT
+          fi
 
       - name: Setup SSH
         run: |
@@ -23,19 +42,56 @@ jobs:
         env:
           SSH_PRIVATE_KEY: ${{ secrets.DIGITALOCEAN_SSH_KEY }}
 
-      - name: Add DigitalOcean droplet to known hosts
+      - name: Add server to known hosts
         run: |
-          ssh-keyscan -H 104.248.80.243 >> ~/.ssh/known_hosts
+          ssh-keyscan -H ${{ steps.deployment.outputs.server_ip }} >> ~/.ssh/known_hosts
 
-      - name: Deploy to Droplet
+      - name: Deploy to server
+        env:
+          DEPLOY_DIR: ${{ steps.deployment.outputs.deploy_dir }}
+          CONTAINER_NAME: ${{ steps.deployment.outputs.container_name }}
+          BRANCH: ${{ steps.deployment.outputs.branch }}
+          DB_NAME: ${{ steps.deployment.outputs.db_name }}
+          REPO: ${{ github.repository }}
         run: |
-          ssh root@104.248.80.243 << 'EOF'
-           cd /root/forby/backend/flowback-backend
-           eval "$(ssh-agent -s)"
-           ssh-add /root/.ssh/forby_frontend_rsa
-           git pull origin testing-server
-           source venv/bin/activate
-           python -m pip install -r requirements.txt
-           python manage.py migrate
-           sudo supervisorctl restart all
-          EOF
+          ssh root@${{ steps.deployment.outputs.server_ip }} << 'ENDSSH'
+
+            # Navigate to deployment directory
+            cd "$DEPLOY_DIR"
+
+            # Setup SSH agent for git operations
+            eval "$(ssh-agent -s)"
+            ssh-add /root/.ssh/forby_frontend_rsa
+
+            # Pull latest code
+            git fetch origin
+            git checkout $BRANCH
+            git reset --hard origin/$BRANCH
+
+            # Rebuild Docker image
+            docker build -t $CONTAINER_NAME .
+
+            # Stop and remove old container
+            docker stop $CONTAINER_NAME || true
+            docker rm $CONTAINER_NAME || true
+
+            # Start new container with updated code
+            docker run -d               --name $CONTAINER_NAME               --restart unless-stopped               -p 8000:8000               -v /root/forby_backend_env_backup.txt:/app/.env               $CONTAINER_NAME               gunicorn backend.wsgi:application --bind 0.0.0.0:8000
+
+            # Wait for container to start
+            sleep 5
+
+            # Run migrations
+            docker exec $CONTAINER_NAME python manage.py migrate
+
+            # Check if container is running
+            if ! docker ps | grep -q $CONTAINER_NAME; then
+              echo "ERROR: Container failed to start"
+              docker logs $CONTAINER_NAME --tail 50
+              exit 1
+            fi
+
+            echo "Deployment successful! Container $CONTAINER_NAME is running."
+
+ENDSSH
+
