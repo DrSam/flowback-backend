@@ -45,52 +45,53 @@ jobs:
           ssh-keyscan -H ${{ steps.deployment.outputs.server_ip }} >> ~/.ssh/known_hosts
 
       - name: Deploy to server
-        env:
-          DEPLOY_DIR: ${{ steps.deployment.outputs.deploy_dir }}
-          CONTAINER_NAME: ${{ steps.deployment.outputs.container_name }}
-          BRANCH: ${{ steps.deployment.outputs.branch }}
         run: |
-          ssh root@${{ steps.deployment.outputs.server_ip }} << 'EOF'
+          ssh root@${{ steps.deployment.outputs.server_ip }} << EOF
+            # Set variables
+            export DEPLOY_DIR="${{ steps.deployment.outputs.deploy_dir }}"
+            export CONTAINER_NAME="${{ steps.deployment.outputs.container_name }}"
+            export BRANCH="${{ steps.deployment.outputs.branch }}"
+
             # Navigate to deployment directory
-            cd "$DEPLOY_DIR"
+            cd "\$DEPLOY_DIR"
 
             # Setup SSH agent for git operations
-            eval "$(ssh-agent -s)"
+            eval "\$(ssh-agent -s)"
             ssh-add /root/.ssh/forby_frontend_rsa
 
             # Pull latest code
             git fetch origin
-            git checkout $BRANCH
-            git reset --hard origin/$BRANCH
+            git checkout \$BRANCH
+            git reset --hard origin/\$BRANCH
 
             # Rebuild Docker image
-            docker build -t $CONTAINER_NAME .
+            docker build -t \$CONTAINER_NAME .
 
             # Stop and remove old container
-            docker stop $CONTAINER_NAME || true
-            docker rm $CONTAINER_NAME || true
+            docker stop \$CONTAINER_NAME || true
+            docker rm \$CONTAINER_NAME || true
 
             # Start new container with updated code
-            docker run -d \
-              --name $CONTAINER_NAME \
-              --restart unless-stopped \
-              -p 8000:8000 \
-              -v /root/forby_backend_env_backup.txt:/app/.env \
-              $CONTAINER_NAME \
+            docker run -d \\
+              --name \$CONTAINER_NAME \\
+              --restart unless-stopped \\
+              -p 8000:8000 \\
+              -v /root/forby_backend_env_backup.txt:/app/.env \\
+              \$CONTAINER_NAME \\
               gunicorn backend.wsgi:application --bind 0.0.0.0:8000
 
             # Wait for container to start
             sleep 5
 
             # Run migrations
-            docker exec $CONTAINER_NAME python manage.py migrate
+            docker exec \$CONTAINER_NAME python manage.py migrate
 
             # Check if container is running
-            if ! docker ps | grep -q $CONTAINER_NAME; then
+            if ! docker ps | grep -q \$CONTAINER_NAME; then
               echo "ERROR: Container failed to start"
-              docker logs $CONTAINER_NAME --tail 50
+              docker logs \$CONTAINER_NAME --tail 50
               exit 1
             fi
 
-            echo "Deployment successful! Container $CONTAINER_NAME is running."
+            echo "Deployment successful! Container \$CONTAINER_NAME is running."
           EOF
